@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+
 import {
   Tooltip,
   TooltipContent,
@@ -9,7 +11,7 @@ export interface HintProps {
   /** Text to display inside the tooltip */
   label: string;
   /** The element that triggers the tooltip on hover */
-  children: React.ReactNode;
+  children: ReactElement;
   /** Which side of the trigger to render the tooltip */
   side?: "top" | "bottom" | "left" | "right";
   /** Alignment of the tooltip relative to the trigger */

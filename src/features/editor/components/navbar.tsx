@@ -59,6 +59,7 @@ export const Navbar = ({ activeTool, onChangeActiveTool }: NavbarProps) => {
         <Separator className="mx-2" orientation="vertical" />
         <Hint label="Select" side="bottom" sideOffset={10}>
           <Button
+            aria-label="Select"
             className={cn(activeTool === "select" && "bg-gray-100")}
             size="icon"
             variant="ghost"
@@ -69,6 +70,7 @@ export const Navbar = ({ activeTool, onChangeActiveTool }: NavbarProps) => {
         </Hint>
         <Hint label="Undo" side="bottom" sideOffset={10}>
           <Button
+            aria-label="Undo"
             disabled={false}
             size="icon"
             variant="ghost"
@@ -79,6 +81,7 @@ export const Navbar = ({ activeTool, onChangeActiveTool }: NavbarProps) => {
         </Hint>
         <Hint label="Redo" side="bottom" sideOffset={10}>
           <Button
+            aria-label="Redo"
             disabled={false}
             size="icon"
             variant="ghost"

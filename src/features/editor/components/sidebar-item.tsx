@@ -26,6 +26,7 @@ export const SidebarItem = ({
 }: SidebarItemProps) => {
   return (
     <Button
+      aria-pressed={isActive}
       className={cn(
         "flex h-auto w-full flex-col rounded-none p-3 py-4",
         isActive && "bg-muted text-primary", // Apply active styles when selected

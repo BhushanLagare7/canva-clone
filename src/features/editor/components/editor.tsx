@@ -16,16 +16,18 @@ export const Editor = () => {
 
   const onChangeActiveTool = useCallback(
     (tool: ActiveTool) => {
+      if (tool === activeTool) {
+        if (activeTool === "draw") {
+          // TODO: Disable draw mode
+        }
+
+        return setActiveTool("select");
+      }
+
       if (tool === "draw") {
         // TODO: Enable draw mode
-      }
-
-      if (activeTool === "draw") {
+      } else if (activeTool === "draw") {
         // TODO: Disable draw mode
-      }
-
-      if (tool === activeTool) {
-        return setActiveTool("select");
       }
 
       setActiveTool(tool);
@@ -68,7 +70,7 @@ export const Editor = () => {
           <Toolbar />
           <div
             ref={container}
-            className="bg-muted relative h-[calc(100%-124px)] min-h-0 min-w-0 flex-1 overflow-hidden"
+            className="bg-muted relative min-h-0 min-w-0 flex-1 overflow-hidden"
           >
             <canvas ref={canvasRef} />
           </div>
