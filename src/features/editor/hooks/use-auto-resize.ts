@@ -29,7 +29,6 @@ export const useAutoResize = ({ canvas, container }: UseAutoResizeProps) => {
 
     const center = canvas.getCenterPoint();
 
-    const zoomRatio = 0.85; // Slight padding to avoid clipping at edges
     const localWorkspace = canvas
       .getObjects()
       .find(
@@ -37,9 +36,14 @@ export const useAutoResize = ({ canvas, container }: UseAutoResizeProps) => {
           (object as fabric.FabricObject & { name?: string }).name === "clip",
       );
 
+    // Nothing to zoom to — workspace hasn't been added yet
+    if (!localWorkspace) return;
+
+    const zoomRatio = 0.85; // Slight padding to avoid clipping at edges
+
     // Calculate the scale needed to fit the workspace within the canvas
     const scale = fabric.util.findScaleToFit(
-      (localWorkspace as fabric.FabricObject) || { width: 0, height: 0 },
+      localWorkspace as fabric.FabricObject,
       { width, height },
     );
 
@@ -48,8 +52,6 @@ export const useAutoResize = ({ canvas, container }: UseAutoResizeProps) => {
     // Reset viewport and apply the calculated zoom
     canvas.setViewportTransform([...fabric.iMatrix] as fabric.TMat2D);
     canvas.zoomToPoint(center, zoom);
-
-    if (!localWorkspace) return;
 
     // Re-center the viewport around the workspace object
     const workspaceCenter = localWorkspace.getCenterPoint();
