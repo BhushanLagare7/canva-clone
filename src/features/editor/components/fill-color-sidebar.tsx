@@ -23,8 +23,8 @@ export const FillColorSidebar = ({
   activeTool,
   onChangeActiveTool,
 }: FillColorSidebarProps) => {
-  // Fall back to the default fill color if no editor color is set.
-  const value = editor?.fillColor || FILL_COLOR;
+  // Get the active fill color from the editor, or use the default fill color.
+  const value = editor?.getActiveFillColor() ?? FILL_COLOR;
 
   /** Resets the active tool back to the default selection tool on close. */
   const onClose = () => {
