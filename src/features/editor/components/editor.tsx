@@ -6,6 +6,7 @@ import { Canvas } from "fabric";
 
 import { Footer } from "@/features/editor/components/footer";
 import { Navbar } from "@/features/editor/components/navbar";
+import { ShapeSidebar } from "@/features/editor/components/shape-sidebar";
 import { Sidebar } from "@/features/editor/components/sidebar";
 import { Toolbar } from "@/features/editor/components/toolbar";
 import { useEditor } from "@/features/editor/hooks/use-editor";
@@ -35,7 +36,7 @@ export const Editor = () => {
     [activeTool],
   );
 
-  const { init } = useEditor();
+  const { init, editor } = useEditor();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const container = useRef<HTMLDivElement>(null);
@@ -64,6 +65,11 @@ export const Editor = () => {
       <div className="flex h-full min-h-0 flex-1 overflow-hidden">
         <Sidebar
           activeTool={activeTool}
+          onChangeActiveTool={onChangeActiveTool}
+        />
+        <ShapeSidebar
+          activeTool={activeTool}
+          editor={editor}
           onChangeActiveTool={onChangeActiveTool}
         />
         <main className="bg-muted relative flex flex-1 flex-col overflow-auto">
