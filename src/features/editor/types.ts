@@ -1,6 +1,16 @@
 import * as fabric from "fabric";
 import material from "material-colors";
 
+export const selectionDependentTools = [
+  "fill",
+  "font",
+  "filter",
+  "opacity",
+  "remove-bg",
+  "stroke-color",
+  "stroke-width",
+];
+
 export const colors = [
   material.red["500"],
   material.pink["500"],
@@ -43,6 +53,7 @@ export type ActiveTool =
 export const FILL_COLOR = "rgba(0, 0, 0, 1)";
 export const STROKE_COLOR = "rgba(0, 0, 0, 1)";
 export const STROKE_WIDTH = 2;
+export const STROKE_DASH_ARRAY = [];
 
 export const CIRCLE_OPTIONS = {
   radius: 225,
@@ -86,14 +97,20 @@ export const TRIANGLE_OPTIONS = {
   angle: 0,
 };
 
+export interface EditorHookProps {
+  clearSelectionCallback?: () => void;
+}
+
 export type BuildEditorProps = {
   canvas: fabric.Canvas;
   fillColor: string;
   selectedObjects: fabric.Object[];
   setFillColor: (color: string) => void;
   setStrokeColor: (color: string) => void;
+  setStrokeDashArray: (array: number[]) => void;
   setStrokeWidth: (width: number) => void;
   strokeColor: string;
+  strokeDashArray: number[];
   strokeWidth: number;
 };
 
@@ -108,8 +125,10 @@ export interface Editor {
   changeFillColor: (color: string) => void;
   changeStrokeColor: (color: string) => void;
   changeStrokeWidth: (width: number) => void;
-  fillColor: string;
+  changeStrokeDashArray: (array: number[]) => void;
+  getActiveFillColor: () => string;
+  getActiveStrokeColor: () => string;
+  getActiveStrokeDashArray: () => number[];
+  getActiveStrokeWidth: () => number;
   selectedObjects: fabric.Object[];
-  strokeColor: string;
-  strokeWidth: number;
 }
