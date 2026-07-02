@@ -142,6 +142,7 @@ const buildEditor = ({
       const object = new fabric.Textbox(text, {
         ...TEXT_OPTIONS,
         fill: fillColor,
+        fontFamily,
         ...options,
       });
       addToCanvas(object);

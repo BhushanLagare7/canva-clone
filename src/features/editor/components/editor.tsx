@@ -118,7 +118,6 @@ export const Editor = () => {
         />
         <main className="bg-muted relative flex flex-1 flex-col overflow-auto">
           <Toolbar
-            key={JSON.stringify(editor?.canvas.getActiveObject())}
             activeTool={activeTool}
             editor={editor}
             onChangeActiveTool={onChangeActiveTool}

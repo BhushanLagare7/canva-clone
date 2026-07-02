@@ -62,55 +62,77 @@ export const Toolbar = ({
   const selectedObjectType = selectedObject?.type;
   const isText = isTextType(selectedObjectType);
 
-  const toggleBold = () => {
-    if (!selectedObject) return;
+  // Re-sync local properties whenever the selection changes (not on every
+  // in-place property mutation, since `selectedObject` keeps its reference
+  // while the user is e.g. typing into the font size input). Adjusting state
+  // during render (rather than in an effect) avoids an extra render pass.
+  const [prevSelectedObject, setPrevSelectedObject] = useState(selectedObject);
+  if (selectedObject !== prevSelectedObject) {
+    setPrevSelectedObject(selectedObject);
+    setProperties({
+      fillColor: editor?.getActiveFillColor(),
+      fontFamily: editor?.getActiveFontFamily(),
+      fontLinethrough: editor?.getActiveFontLinethrough() ?? false,
+      fontSize: editor?.getActiveFontSize() ?? FONT_SIZE,
+      fontStyle: editor?.getActiveFontStyle() ?? "normal",
+      fontUnderline: editor?.getActiveFontUnderline() ?? false,
+      fontWeight: editor?.getActiveFontWeight() ?? FONT_WEIGHT,
+      strokeColor: editor?.getActiveStrokeColor(),
+      textAlign: editor?.getActiveTextAlign() ?? "left",
+    });
+  }
 
+  /**
+   * Applies a text property change through the editor and mirrors it into
+   * local state, guarding on there being a selected text object. Centralizes
+   * the repeated guard + editor-call + setProperties pattern shared by the
+   * toggle/align/size handlers below.
+   */
+  const applyTextChange = <K extends keyof typeof properties>(
+    key: K,
+    value: (typeof properties)[K],
+    apply: () => void,
+  ) => {
+    if (!selectedObject || !isText) return;
+
+    apply();
+    setProperties((current) => ({ ...current, [key]: value }));
+  };
+
+  const toggleBold = () => {
     const newWeight = properties.fontWeight > 500 ? 500 : 700;
-    if (isText) {
-      editor?.changeFontWeight(newWeight);
-      setProperties((current) => ({ ...current, fontWeight: newWeight }));
-    }
+    applyTextChange("fontWeight", newWeight, () =>
+      editor?.changeFontWeight(newWeight),
+    );
   };
 
   const toggleItalic = () => {
-    if (!selectedObject) return;
-
     const newStyle = properties.fontStyle === "italic" ? "normal" : "italic";
-    if (isText) {
-      editor?.changeFontStyle(newStyle);
-      setProperties((current) => ({ ...current, fontStyle: newStyle }));
-    }
+    applyTextChange("fontStyle", newStyle, () =>
+      editor?.changeFontStyle(newStyle),
+    );
   };
 
   const toggleUnderline = () => {
-    if (!selectedObject) return;
-
     const newUnderline = !properties.fontUnderline;
-    if (isText) {
-      editor?.changeFontUnderline(newUnderline);
-      setProperties((current) => ({ ...current, fontUnderline: newUnderline }));
-    }
+    applyTextChange("fontUnderline", newUnderline, () =>
+      editor?.changeFontUnderline(newUnderline),
+    );
   };
 
   const toggleLinethrough = () => {
-    if (!selectedObject) return;
-
     const newLinethrough = !properties.fontLinethrough;
-    if (isText) {
-      editor?.changeFontLinethrough(newLinethrough);
-      setProperties((current) => ({
-        ...current,
-        fontLinethrough: newLinethrough,
-      }));
-    }
+    applyTextChange("fontLinethrough", newLinethrough, () =>
+      editor?.changeFontLinethrough(newLinethrough),
+    );
   };
 
   const onChangeTextAlign = (align: fabric.TextProps["textAlign"]) => {
-    if (!selectedObject) return;
-    if (!isText) return;
+    applyTextChange("textAlign", align, () => editor?.changeTextAlign(align));
+  };
 
-    editor?.changeTextAlign(align);
-    setProperties((current) => ({ ...current, textAlign: align }));
+  const onChangeFontSize = (size: number) => {
+    applyTextChange("fontSize", size, () => editor?.changeFontSize(size));
   };
 
   if (editor?.selectedObjects.length === 0) {
@@ -118,13 +140,6 @@ export const Toolbar = ({
       <div className="z-49 flex h-14 w-full shrink-0 items-center gap-x-2 overflow-x-auto border-b bg-white p-2" />
     );
   }
-
-  const onChangeFontSize = (size: number) => {
-    if (!selectedObject) return;
-    if (!isText) return;
-    editor?.changeFontSize(size);
-    setProperties((current) => ({ ...current, fontSize: size }));
-  };
 
   return (
     <div className="z-49 flex h-14 w-full shrink-0 items-center gap-x-2 overflow-x-auto border-b bg-white p-2">
