@@ -26,16 +26,13 @@ export const OpacitySidebar = ({
   activeTool,
   onChangeActiveTool,
 }: OpacitySidebarProps) => {
-  // Falls back to fully opaque (1) if no active element is found
-  const initialValue = editor?.getActiveOpacity() ?? 1;
-
   // Tracks the first selected object to detect selection changes
   const selectedObject = useMemo(
     () => editor?.selectedObjects[0],
     [editor?.selectedObjects],
   );
 
-  const [opacity, setOpacity] = useState(initialValue);
+  const [opacity, setOpacity] = useState(() => editor?.getActiveOpacity() ?? 1);
 
   // useTransition defers the opacity state update to avoid blocking the UI
   const [, startTransition] = useTransition();
@@ -79,6 +76,7 @@ export const OpacitySidebar = ({
         <div className="space-y-4 border-b p-4">
           {/* Opacity slider: 0 = fully transparent, 1 = fully opaque, step of 0.01 for fine control */}
           <Slider
+            aria-label="Opacity"
             max={1}
             min={0}
             step={0.01}
