@@ -81,6 +81,8 @@ export const StrokeWidthSidebar = ({
 
           {/* Solid stroke option */}
           <Button
+            aria-label="Solid"
+            aria-pressed={JSON.stringify(typeValue) === `[]`}
             className={cn(
               "h-16 w-full justify-start text-left",
               JSON.stringify(typeValue) === `[]` && "border-2 border-blue-500",
@@ -95,6 +97,8 @@ export const StrokeWidthSidebar = ({
 
           {/* Dashed stroke option */}
           <Button
+            aria-label="Dashed"
+            aria-pressed={JSON.stringify(typeValue) === `[5,5]`}
             className={cn(
               "h-16 w-full justify-start text-left",
               JSON.stringify(typeValue) === `[5,5]` &&

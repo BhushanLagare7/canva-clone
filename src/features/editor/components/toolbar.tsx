@@ -1,4 +1,7 @@
 import { BsBorderWidth } from "react-icons/bs";
+import { RxTransparencyGrid } from "react-icons/rx";
+
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 
 import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
@@ -68,6 +71,40 @@ export const Toolbar = ({
             onClick={() => onChangeActiveTool("stroke-width")}
           >
             <BsBorderWidth className="size-4" />
+          </Button>
+        </Hint>
+      </div>
+      <div className="flex h-full items-center justify-center">
+        <Hint label="Bring forward" side="bottom" sideOffset={5}>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => editor?.bringForward()}
+          >
+            <ArrowUpIcon className="size-4" />
+          </Button>
+        </Hint>
+      </div>
+      <div className="flex h-full items-center justify-center">
+        <Hint label="Send backwards" side="bottom" sideOffset={5}>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => editor?.sendBackwards()}
+          >
+            <ArrowDownIcon className="size-4" />
+          </Button>
+        </Hint>
+      </div>
+      <div className="flex h-full items-center justify-center">
+        <Hint label="Opacity" side="bottom" sideOffset={5}>
+          <Button
+            className={cn(activeTool === "opacity" && "bg-gray-100")}
+            size="icon"
+            variant="ghost"
+            onClick={() => onChangeActiveTool("opacity")}
+          >
+            <RxTransparencyGrid className="size-4" />
           </Button>
         </Hint>
       </div>
