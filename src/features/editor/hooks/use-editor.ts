@@ -56,6 +56,46 @@ const buildEditor = ({
   };
 
   return {
+    getActiveOpacity: () => {
+      const selectedObject = selectedObjects[0];
+      if (!selectedObject) return 1;
+
+      const value = selectedObject.get("opacity") ?? 1;
+
+      return value;
+    },
+    changeOpacity: (opacity: number) => {
+      canvas.getActiveObjects().forEach((object) => {
+        object.set({ opacity });
+      });
+      canvas.renderAll();
+    },
+    bringForward: () => {
+      canvas.getActiveObjects().forEach((object) => {
+        // Used to be canvas.bringForward(object)
+        canvas.bringObjectForward(object);
+      });
+
+      canvas.renderAll();
+
+      const workspace = getWorkspace();
+      if (workspace) {
+        canvas.sendObjectToBack(workspace);
+      }
+    },
+    sendBackwards: () => {
+      canvas.getActiveObjects().forEach((object) => {
+        // Used to be canvas.sendBackwards(object);
+        canvas.sendObjectBackwards(object);
+      });
+
+      canvas.renderAll();
+
+      const workspace = getWorkspace();
+      if (workspace) {
+        canvas.sendObjectToBack(workspace);
+      }
+    },
     changeFillColor: (color: string) => {
       setFillColor(color);
       canvas.getActiveObjects().forEach((object) => {
@@ -182,7 +222,7 @@ const buildEditor = ({
 
       if (!selectedObject) return fillColor;
 
-      const value = selectedObject.get("fill") || fillColor;
+      const value = selectedObject.get("fill") ?? fillColor;
 
       // Currently, gradient & pattern values are not supported
       return value as string;
@@ -192,9 +232,8 @@ const buildEditor = ({
 
       if (!selectedObject) return strokeColor;
 
-      const value = selectedObject.get("stroke") || strokeColor;
+      const value = selectedObject.get("stroke") ?? strokeColor;
 
-      // Currently, gradient & pattern values are not supported
       return value;
     },
     getActiveStrokeWidth: () => {
@@ -204,7 +243,7 @@ const buildEditor = ({
         return strokeWidth;
       }
 
-      const value = selectedObject.get("strokeWidth") || strokeWidth;
+      const value = selectedObject.get("strokeWidth") ?? strokeWidth;
 
       return value;
     },
@@ -215,7 +254,7 @@ const buildEditor = ({
         return strokeDashArray;
       }
 
-      const value = selectedObject.get("strokeDashArray") || strokeDashArray;
+      const value = selectedObject.get("strokeDashArray") ?? strokeDashArray;
 
       return value;
     },

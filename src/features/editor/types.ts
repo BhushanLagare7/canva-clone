@@ -121,14 +121,18 @@ export interface Editor {
   addRectangle: () => void;
   addSoftRectangle: () => void;
   addTriangle: () => void;
+  bringForward: () => void;
   canvas: fabric.Canvas;
   changeFillColor: (color: string) => void;
+  changeOpacity: (opacity: number) => void;
   changeStrokeColor: (color: string) => void;
   changeStrokeWidth: (width: number) => void;
   changeStrokeDashArray: (array: number[]) => void;
   getActiveFillColor: () => string;
+  getActiveOpacity: () => number;
   getActiveStrokeColor: () => string;
   getActiveStrokeDashArray: () => number[];
   getActiveStrokeWidth: () => number;
+  sendBackwards: () => void;
   selectedObjects: fabric.Object[];
 }
