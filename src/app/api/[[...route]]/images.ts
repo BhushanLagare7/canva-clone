@@ -6,26 +6,32 @@ const DEFAULT_COUNT = 50;
 const DEFAULT_COLLECTION_IDS = ["317099"];
 
 const app = new Hono().get("/", async (c) => {
-  const { data, error } = await unsplash.GET("/photos/random", {
-    params: {
-      query: {
-        collections: DEFAULT_COLLECTION_IDS,
-        count: DEFAULT_COUNT,
+  try {
+    const { data, error } = await unsplash.GET("/photos/random", {
+      params: {
+        query: {
+          collections: DEFAULT_COLLECTION_IDS,
+          count: DEFAULT_COUNT,
+        },
       },
-    },
-  });
+    });
 
-  if (error) {
-    return c.json({ error: "Something went wrong" }, 400);
+    if (error) {
+      console.error("[images] Unsplash API error:", error);
+      return c.json({ error: "Something went wrong" }, 400);
+    }
+
+    let response = data;
+
+    if (!Array.isArray(response)) {
+      response = [response];
+    }
+
+    return c.json({ data: response });
+  } catch (e) {
+    console.error("[images] Unsplash fetch exception:", e);
+    return c.json({ error: "Something went wrong" }, 500);
   }
-
-  let response = data;
-
-  if (!Array.isArray(response)) {
-    response = [response];
-  }
-
-  return c.json({ data: response });
 });
 
 export default app;

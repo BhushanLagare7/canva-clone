@@ -50,7 +50,9 @@ export const ImageSidebar = ({
           }}
           endpoint="imageUploader"
           onClientUploadComplete={(res) => {
-            editor?.addImage(res[0].ufsUrl);
+            if (res[0]) {
+              editor?.addImage(res[0].ufsUrl);
+            }
           }}
         />
       </div>
@@ -73,11 +75,14 @@ export const ImageSidebar = ({
             {data &&
               data.map((image) => {
                 return (
-                  <button
+                  <div
                     key={image.id}
                     className="group bg-muted relative h-25 w-full overflow-hidden rounded-sm border transition hover:opacity-75"
-                    onClick={() => editor?.addImage(image.urls.regular)}
                   >
+                    <button
+                      className="absolute inset-0 z-10 cursor-pointer"
+                      onClick={() => editor?.addImage(image.urls.regular)}
+                    />
                     <Image
                       alt={image.description ?? "Image"}
                       className="object-cover"
@@ -85,13 +90,15 @@ export const ImageSidebar = ({
                       src={image.urls.small}
                     />
                     <Link
-                      className="absolute bottom-0 left-0 w-full truncate bg-black/50 p-1 text-left text-[10px] text-white opacity-0 group-hover:opacity-100 hover:underline"
+                      className="relative z-20 mt-auto block w-full truncate bg-black/50 p-1 text-left text-[10px] text-white opacity-0 group-hover:opacity-100 hover:underline"
                       href={image.links.html}
+                      style={{ position: "absolute", bottom: 0, left: 0 }}
                       target="_blank"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {image.user.name}
                     </Link>
-                  </button>
+                  </div>
                 );
               })}
           </div>

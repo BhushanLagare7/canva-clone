@@ -95,16 +95,25 @@ const buildEditor = ({
       addToCanvas(diamond);
     },
     addImage: (url: string) => {
-      fabric.FabricImage.fromURL(url, { crossOrigin: "anonymous" }).then(
-        (image) => {
+      fabric.FabricImage.fromURL(url, { crossOrigin: "anonymous" })
+        .then((image) => {
           const workspace = getWorkspace();
 
-          image.scaleToWidth(workspace?.width ?? 0);
-          image.scaleToHeight(workspace?.height ?? 0);
+          if (!workspace?.width || !workspace?.height) {
+            console.warn("[addImage] No workspace found, skipping image add");
+            return;
+          }
+
+          const scaleX = workspace.width / (image.width ?? 1);
+          const scaleY = workspace.height / (image.height ?? 1);
+          const scale = Math.min(scaleX, scaleY);
+          image.scale(scale);
 
           addToCanvas(image);
-        }
-      );
+        })
+        .catch((err) => {
+          console.error("[addImage] Failed to load image:", err);
+        });
     },
     addInverseTriangle: () => {
       const HEIGHT = TRIANGLE_OPTIONS.height;

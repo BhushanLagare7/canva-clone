@@ -5,6 +5,7 @@ import { client } from "@/lib/hono";
 export const useGetImages = () => {
   const query = useQuery({
     queryKey: ["images"],
+    staleTime: 5 * 60 * 1000, // 5 minutes — avoid re-hitting rate-limited Unsplash API
     queryFn: async () => {
       const response = await client.api.images.$get();
 

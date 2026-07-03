@@ -1,10 +1,10 @@
 import { createApi } from "unsplash-js";
 
-const unsplashApiKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
+const unsplashApiKey = process.env.UNSPLASH_ACCESS_KEY;
 
 if (!unsplashApiKey) {
   throw new Error(
-    "NEXT_PUBLIC_UNSPLASH_ACCESS_KEY is not set in the environment",
+    "UNSPLASH_ACCESS_KEY is not set in the environment",
   );
 }
 
