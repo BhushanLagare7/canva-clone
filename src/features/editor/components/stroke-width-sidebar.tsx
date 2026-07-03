@@ -65,7 +65,7 @@ export const StrokeWidthSidebar = ({
         description="Modify the stroke of your element"
         title="Stroke options"
       />
-      <ScrollArea>
+      <ScrollArea className="min-h-0 flex-1">
         {/* Stroke width control section */}
         <div className="space-y-4 border-b p-4">
           <Label className="text-sm">Stroke width</Label>

@@ -94,6 +94,18 @@ const buildEditor = ({
 
       addToCanvas(diamond);
     },
+    addImage: (url: string) => {
+      fabric.FabricImage.fromURL(url, { crossOrigin: "anonymous" }).then(
+        (image) => {
+          const workspace = getWorkspace();
+
+          image.scaleToWidth(workspace?.width ?? 0);
+          image.scaleToHeight(workspace?.height ?? 0);
+
+          addToCanvas(image);
+        }
+      );
+    },
     addInverseTriangle: () => {
       const HEIGHT = TRIANGLE_OPTIONS.height;
       const WIDTH = TRIANGLE_OPTIONS.width;
@@ -247,14 +259,6 @@ const buildEditor = ({
       });
       canvas.renderAll();
     },
-    changeTextAlign: (align: fabric.TextProps["textAlign"]) => {
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ textAlign: align });
-        }
-      });
-      canvas.renderAll();
-    },
     changeStrokeDashArray: (value: number[]) => {
       setStrokeDashArray(value);
       canvas.getActiveObjects().forEach((object) => {
@@ -267,6 +271,21 @@ const buildEditor = ({
       canvas.getActiveObjects().forEach((object) => {
         object.set({ strokeWidth: width });
       });
+      canvas.renderAll();
+    },
+    changeTextAlign: (align: fabric.TextProps["textAlign"]) => {
+      canvas.getActiveObjects().forEach((object) => {
+        if (isTextType(object.type)) {
+          object.set({ textAlign: align });
+        }
+      });
+      canvas.renderAll();
+    },
+    delete: () => {
+      canvas.getActiveObjects().forEach((object) => {
+        canvas.remove(object);
+      });
+      canvas.discardActiveObject();
       canvas.renderAll();
     },
     getActiveFillColor: () => {

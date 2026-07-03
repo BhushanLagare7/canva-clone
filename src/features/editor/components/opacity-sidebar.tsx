@@ -72,7 +72,7 @@ export const OpacitySidebar = ({
         description="Change the opacity of the selected object"
         title="Opacity"
       />
-      <ScrollArea>
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-4 border-b p-4">
           {/* Opacity slider: 0 = fully transparent, 1 = fully opaque, step of 0.01 for fine control */}
           <Slider
