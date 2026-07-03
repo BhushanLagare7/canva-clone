@@ -40,7 +40,7 @@ export const FontSidebar = ({
       )}
     >
       <ToolSidebarHeader description="Change the text font" title="Font" />
-      <ScrollArea>
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-1 border-b p-4">
           {/* Render a button for each available font */}
           {fonts.map((font) => (

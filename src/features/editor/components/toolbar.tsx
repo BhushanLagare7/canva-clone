@@ -11,6 +11,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   ChevronDownIcon,
+  TrashIcon,
 } from "lucide-react";
 
 import { Hint } from "@/components/hint";
@@ -346,6 +347,13 @@ export const Toolbar = ({
             onClick={() => onChangeActiveTool("opacity")}
           >
             <RxTransparencyGrid className="size-4" />
+          </Button>
+        </Hint>
+      </div>
+      <div className="flex h-full items-center justify-center">
+        <Hint label="Delete" side="bottom" sideOffset={5}>
+          <Button size="icon" variant="ghost" onClick={() => editor?.delete()}>
+            <TrashIcon className="size-4" />
           </Button>
         </Hint>
       </div>

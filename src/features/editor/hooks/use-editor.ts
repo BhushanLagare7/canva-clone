@@ -94,6 +94,27 @@ const buildEditor = ({
 
       addToCanvas(diamond);
     },
+    addImage: (url: string) => {
+      fabric.FabricImage.fromURL(url, { crossOrigin: "anonymous" })
+        .then((image) => {
+          const workspace = getWorkspace();
+
+          if (!workspace?.width || !workspace?.height) {
+            console.warn("[addImage] No workspace found, skipping image add");
+            return;
+          }
+
+          const scaleX = workspace.width / (image.width ?? 1);
+          const scaleY = workspace.height / (image.height ?? 1);
+          const scale = Math.min(scaleX, scaleY);
+          image.scale(scale);
+
+          addToCanvas(image);
+        })
+        .catch((err) => {
+          console.error("[addImage] Failed to load image:", err);
+        });
+    },
     addInverseTriangle: () => {
       const HEIGHT = TRIANGLE_OPTIONS.height;
       const WIDTH = TRIANGLE_OPTIONS.width;
@@ -247,14 +268,6 @@ const buildEditor = ({
       });
       canvas.renderAll();
     },
-    changeTextAlign: (align: fabric.TextProps["textAlign"]) => {
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ textAlign: align });
-        }
-      });
-      canvas.renderAll();
-    },
     changeStrokeDashArray: (value: number[]) => {
       setStrokeDashArray(value);
       canvas.getActiveObjects().forEach((object) => {
@@ -267,6 +280,21 @@ const buildEditor = ({
       canvas.getActiveObjects().forEach((object) => {
         object.set({ strokeWidth: width });
       });
+      canvas.renderAll();
+    },
+    changeTextAlign: (align: fabric.TextProps["textAlign"]) => {
+      canvas.getActiveObjects().forEach((object) => {
+        if (isTextType(object.type)) {
+          object.set({ textAlign: align });
+        }
+      });
+      canvas.renderAll();
+    },
+    delete: () => {
+      canvas.getActiveObjects().forEach((object) => {
+        canvas.remove(object);
+      });
+      canvas.discardActiveObject();
       canvas.renderAll();
     },
     getActiveFillColor: () => {

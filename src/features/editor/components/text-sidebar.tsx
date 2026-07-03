@@ -37,7 +37,7 @@ export const TextSidebar = ({
       )}
     >
       <ToolSidebarHeader description="Add text to your canvas" title="Text" />
-      <ScrollArea>
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-4 border-b p-4">
           {/* Default textbox with no specific styling */}
           <Button className="w-full" onClick={() => editor?.addText("Textbox")}>

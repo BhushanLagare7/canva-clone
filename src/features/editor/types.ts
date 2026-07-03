@@ -151,6 +151,7 @@ export type BuildEditorProps = {
 export interface Editor {
   addCircle: () => void;
   addDiamond: () => void;
+  addImage: (url: string) => void;
   addInverseTriangle: () => void;
   addRectangle: () => void;
   addSoftRectangle: () => void;
@@ -167,9 +168,10 @@ export interface Editor {
   changeFontWeight: (weight: number) => void;
   changeOpacity: (opacity: number) => void;
   changeStrokeColor: (color: string) => void;
-  changeTextAlign: (align: fabric.TextProps["textAlign"]) => void;
   changeStrokeDashArray: (array: number[]) => void;
   changeStrokeWidth: (width: number) => void;
+  changeTextAlign: (align: fabric.TextProps["textAlign"]) => void;
+  delete: () => void;
   getActiveFillColor: () => string;
   getActiveFontFamily: () => string;
   getActiveFontLinethrough: () => boolean;
