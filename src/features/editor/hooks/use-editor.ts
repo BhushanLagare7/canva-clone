@@ -5,6 +5,7 @@ import { FabricObject } from "fabric";
 
 import { useAutoResize } from "@/features/editor/hooks/use-auto-resize";
 import { useCanvasEvents } from "@/features/editor/hooks/use-canvas-events";
+import { useClipboard } from "@/features/editor/hooks/use-clipboard";
 import {
   BuildEditorProps,
   CIRCLE_OPTIONS,
@@ -26,8 +27,10 @@ import { createFilter, isTextType } from "@/features/editor/utils";
 
 const buildEditor = ({
   canvas,
+  copy,
   fillColor,
   fontFamily,
+  paste,
   selectedObjects,
   setFillColor,
   setFontFamily,
@@ -418,6 +421,8 @@ const buildEditor = ({
 
       return value;
     },
+    onCopy: () => copy(),
+    onPaste: () => paste(),
     selectedObjects,
     sendBackwards: () => {
       canvas.getActiveObjects().forEach((object) => {
@@ -448,6 +453,8 @@ export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
   const [strokeDashArray, setStrokeDashArray] =
     useState<number[]>(STROKE_DASH_ARRAY);
 
+  const { copy, paste } = useClipboard({ canvas });
+
   useAutoResize({
     canvas,
     container,
@@ -463,8 +470,10 @@ export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
     if (canvas) {
       return buildEditor({
         canvas,
+        copy,
         fillColor,
         fontFamily,
+        paste,
         selectedObjects,
         setFillColor,
         setFontFamily,
@@ -480,8 +489,10 @@ export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
     return undefined;
   }, [
     canvas,
+    copy,
     fillColor,
     fontFamily,
+    paste,
     selectedObjects,
     strokeColor,
     strokeDashArray,
