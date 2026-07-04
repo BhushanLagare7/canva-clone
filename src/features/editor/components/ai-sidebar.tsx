@@ -23,9 +23,11 @@ export const AiSidebar = ({
   const mutation = useGenerateImage();
 
   const [value, setValue] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
 
     // TODO: Block with paywall
 
@@ -36,6 +38,9 @@ export const AiSidebar = ({
           if (data) {
             editor?.addImage(data);
           }
+        },
+        onError: (err) => {
+          setError(err.message || "Failed to generate image");
         },
       },
     );
@@ -65,6 +70,7 @@ export const AiSidebar = ({
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />
+          {error && <p className="text-xs text-destructive">{error}</p>}
           <Button
             className="w-full"
             disabled={mutation.isPending}

@@ -25,7 +25,16 @@ export const useGenerateImage = () => {
       const response = await client.api.ai["generate-image"].$post({ json });
 
       if (!response.ok) {
-        throw new Error("Failed to generate image");
+        let errorMessage = "Failed to generate image";
+        try {
+          const errData = await response.json();
+          if (errData && typeof errData === "object" && "error" in errData) {
+            errorMessage = errData.error as string;
+          }
+        } catch {
+          // Ignore parsing errors and keep the default message
+        }
+        throw new Error(errorMessage);
       }
 
       return await response.json();

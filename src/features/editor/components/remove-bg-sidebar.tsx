@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Image from "next/image";
 
 import * as fabric from "fabric";
@@ -22,25 +23,33 @@ export const RemoveBgSidebar = ({
   activeTool,
   onChangeActiveTool,
 }: RemoveBgSidebarProps) => {
+  const [error, setError] = useState<string | null>(null);
   const mutation = useRemoveBg();
 
   const selectedObject = editor?.selectedObjects[0];
 
-  const imageObject = selectedObject as fabric.Image;
-  const imageSrc = imageObject?.getSrc?.();
+  const imageObject =
+    selectedObject instanceof fabric.FabricImage ? selectedObject : null;
+  const imageSrc = imageObject ? imageObject.getSrc() : null;
 
   const onClose = () => {
     onChangeActiveTool("select");
   };
 
   const onClick = () => {
+    setError(null);
     // TODO: Block using paywall
+
+    if (!imageSrc) return;
 
     mutation.mutate(
       { image: imageSrc },
       {
         onSuccess: ({ data }) => {
           editor?.addImage(data);
+        },
+        onError: (err) => {
+          setError(err.message || "Failed to remove background");
         },
       },
     );
@@ -76,6 +85,7 @@ export const RemoveBgSidebar = ({
             >
               <Image alt="Image" className="object-cover" fill src={imageSrc} />
             </div>
+            {error && <p className="text-destructive text-xs">{error}</p>}
             <Button
               className="w-full"
               disabled={mutation.isPending}

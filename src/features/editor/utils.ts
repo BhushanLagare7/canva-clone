@@ -88,12 +88,6 @@ export const createFilter = (value: string) => {
     case "polaroid":
       effect = new fabric.filters.Polaroid();
       break;
-    case "removecolor":
-      effect = new fabric.filters.RemoveColor({
-        threshold: 0.2,
-        distance: 0.5,
-      });
-      break;
     case "resize":
       effect = new fabric.filters.Resize();
       break;
@@ -123,9 +117,7 @@ export const createFilter = (value: string) => {
       effect = new fabric.filters.Vintage();
       break;
     default:
-      // Unknown filter name — return early without setting `effect`
-      effect = null;
-      return;
+      return null;
   }
 
   return effect;

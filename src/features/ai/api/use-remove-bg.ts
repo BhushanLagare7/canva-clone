@@ -25,7 +25,18 @@ export const useRemoveBg = () => {
       const response = await client.api.ai["remove-bg"].$post({ json });
 
       if (!response.ok) {
-        throw new Error("Failed to remove background");
+        let errorMessage = "Failed to remove background";
+        try {
+          const errData = await response.json();
+          if (errData && typeof errData === "object" && "error" in errData) {
+            errorMessage = `${errData.error} (Status: ${response.status})`;
+          } else {
+            errorMessage = `Failed to remove background (Status: ${response.status})`;
+          }
+        } catch {
+          errorMessage = `Failed to remove background (Status: ${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       return await response.json();

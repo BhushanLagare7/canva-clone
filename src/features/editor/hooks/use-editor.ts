@@ -254,15 +254,15 @@ const buildEditor = ({
       const objects = canvas.getActiveObjects();
       objects.forEach((object) => {
         if (object.type === "image") {
-          const imageObject = object as fabric.Image;
+          const imageObject = object as fabric.FabricImage;
 
           const effect = createFilter(filter);
 
           imageObject.filters = effect ? [effect] : [];
           imageObject.applyFilters();
-          canvas.renderAll();
         }
       });
+      canvas.renderAll();
     },
     changeOpacity: (opacity: number) => {
       canvas.getActiveObjects().forEach((object) => {
