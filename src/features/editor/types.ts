@@ -1,6 +1,31 @@
 import * as fabric from "fabric";
 import material from "material-colors";
 
+export const filters = [
+  "blacknwhite",
+  "blendcolor",
+  "blur",
+  "brightness",
+  "brownie",
+  "contrast",
+  "emboss",
+  "gamma",
+  "greyscale",
+  "huerotate",
+  "invert",
+  "kodachrome",
+  "none",
+  "pixelate",
+  "polaroid",
+  "resize",
+  "saturation",
+  "sepia",
+  "sharpen",
+  "technicolor",
+  "vibrance",
+  "vintage",
+];
+
 export const fonts = [
   "Arial",
   "Arial Black",
@@ -166,6 +191,7 @@ export interface Editor {
   changeFontStyle: (style: string) => void;
   changeFontUnderline: (value: boolean) => void;
   changeFontWeight: (weight: number) => void;
+  changeImageFilter: (filter: string) => void;
   changeOpacity: (opacity: number) => void;
   changeStrokeColor: (color: string) => void;
   changeStrokeDashArray: (array: number[]) => void;
