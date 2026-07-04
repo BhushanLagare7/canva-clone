@@ -4,12 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Canvas } from "fabric";
 
+import { AiSidebar } from "@/features/editor/components/ai-sidebar";
 import { FillColorSidebar } from "@/features/editor/components/fill-color-sidebar";
+import { FilterSidebar } from "@/features/editor/components/filter-sidebar";
 import { FontSidebar } from "@/features/editor/components/font-sidebar";
 import { Footer } from "@/features/editor/components/footer";
 import { ImageSidebar } from "@/features/editor/components/image-sidebar";
 import { Navbar } from "@/features/editor/components/navbar";
 import { OpacitySidebar } from "@/features/editor/components/opacity-sidebar";
+import { RemoveBgSidebar } from "@/features/editor/components/remove-bg-sidebar";
 import { ShapeSidebar } from "@/features/editor/components/shape-sidebar";
 import { Sidebar } from "@/features/editor/components/sidebar";
 import { StrokeColorSidebar } from "@/features/editor/components/stroke-color-sidebar";
@@ -118,6 +121,21 @@ export const Editor = () => {
           onChangeActiveTool={onChangeActiveTool}
         />
         <ImageSidebar
+          activeTool={activeTool}
+          editor={editor}
+          onChangeActiveTool={onChangeActiveTool}
+        />
+        <FilterSidebar
+          activeTool={activeTool}
+          editor={editor}
+          onChangeActiveTool={onChangeActiveTool}
+        />
+        <AiSidebar
+          activeTool={activeTool}
+          editor={editor}
+          onChangeActiveTool={onChangeActiveTool}
+        />
+        <RemoveBgSidebar
           activeTool={activeTool}
           editor={editor}
           onChangeActiveTool={onChangeActiveTool}

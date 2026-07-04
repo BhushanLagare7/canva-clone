@@ -22,7 +22,7 @@ import {
   TEXT_OPTIONS,
   TRIANGLE_OPTIONS,
 } from "@/features/editor/types";
-import { isTextType } from "@/features/editor/utils";
+import { createFilter, isTextType } from "@/features/editor/utils";
 
 const buildEditor = ({
   canvas,
@@ -246,6 +246,20 @@ const buildEditor = ({
       canvas.getActiveObjects().forEach((object) => {
         if (isTextType(object.type)) {
           object.set({ fontWeight: weight });
+        }
+      });
+      canvas.renderAll();
+    },
+    changeImageFilter: (filter: string) => {
+      const objects = canvas.getActiveObjects();
+      objects.forEach((object) => {
+        if (object.type === "image") {
+          const imageObject = object as fabric.FabricImage;
+
+          const effect = createFilter(filter);
+
+          imageObject.filters = effect ? [effect] : [];
+          imageObject.applyFilters();
         }
       });
       canvas.renderAll();
