@@ -160,8 +160,10 @@ export interface EditorHookProps {
 
 export type BuildEditorProps = {
   canvas: fabric.Canvas;
+  copy: () => Promise<void>;
   fillColor: string;
   fontFamily: string;
+  paste: () => Promise<void>;
   selectedObjects: fabric.Object[];
   setFillColor: (color: string) => void;
   setFontFamily: (fontFamily: string) => void;
@@ -210,6 +212,8 @@ export interface Editor {
   getActiveStrokeDashArray: () => number[];
   getActiveStrokeWidth: () => number;
   getActiveTextAlign: () => fabric.TextProps["textAlign"];
+  onCopy: () => Promise<void>;
+  onPaste: () => Promise<void>;
   selectedObjects: fabric.Object[];
   sendBackwards: () => void;
 }
