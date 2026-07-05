@@ -6,6 +6,9 @@ import { FabricObject } from "fabric";
 import { useAutoResize } from "@/features/editor/hooks/use-auto-resize";
 import { useCanvasEvents } from "@/features/editor/hooks/use-canvas-events";
 import { useClipboard } from "@/features/editor/hooks/use-clipboard";
+import { useHistory } from "@/features/editor/hooks/use-history";
+import { useHotkeys } from "@/features/editor/hooks/use-hotkeys";
+import { useWindowEvents } from "@/features/editor/hooks/use-window-events";
 import {
   BuildEditorProps,
   CIRCLE_OPTIONS,
@@ -16,6 +19,7 @@ import {
   FONT_FAMILY,
   FONT_SIZE,
   FONT_WEIGHT,
+  JSON_KEYS,
   RECTANGLE_OPTIONS,
   STROKE_COLOR,
   STROKE_DASH_ARRAY,
@@ -23,15 +27,29 @@ import {
   TEXT_OPTIONS,
   TRIANGLE_OPTIONS,
 } from "@/features/editor/types";
-import { createFilter, isTextType } from "@/features/editor/utils";
+import {
+  createFilter,
+  downloadFile,
+  isTextType,
+  transformText,
+} from "@/features/editor/utils";
 
 const buildEditor = ({
+  autoZoom,
+  canRedo,
+  canUndo,
   canvas,
   copy,
+  drawColor,
+  drawWidth,
   fillColor,
   fontFamily,
   paste,
+  redo,
+  save,
   selectedObjects,
+  setDrawColor,
+  setDrawWidth,
   setFillColor,
   setFontFamily,
   setStrokeColor,
@@ -40,7 +58,130 @@ const buildEditor = ({
   strokeColor,
   strokeDashArray,
   strokeWidth,
+  undo,
 }: BuildEditorProps): Editor => {
+  const generateSaveOptions = () => {
+    const workspace = getWorkspace() as fabric.Rect;
+    const { left, top, width, height } = workspace.getBoundingRect();
+
+    return {
+      name: "Image",
+      format: "png" as const,
+      quality: 1,
+      width,
+      height,
+      left,
+      top,
+      multiplier: 1,
+    };
+  };
+
+  const savePng = () => {
+    const options = generateSaveOptions();
+
+    // Temporarily remove clipPath — it was configured for the zoomed
+    // editor viewport and distorts the export crop coordinates.
+    const originalClipPath = canvas.clipPath;
+    canvas.clipPath = undefined;
+
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    // Use getBoundingRect() to get the actual top-left corner.
+    // workspace.left/top are the CENTER point (originX/Y: "center"),
+    // but toDataURL expects top-left corner coordinates.
+    const workspace = getWorkspace() as fabric.Rect;
+    const { left, top, width, height } = workspace.getBoundingRect();
+    try {
+      const dataUrl = canvas.toDataURL({
+        ...options,
+        left,
+        top,
+        width,
+        height,
+      });
+
+      downloadFile(dataUrl, "png", "export");
+    } finally {
+      canvas.clipPath = originalClipPath;
+      autoZoom();
+    }
+  };
+
+  const saveSvg = () => {
+    // Use fabric's native toSVG() to produce a real SVG document
+    // instead of a raster dataURL mislabelled as ".svg".
+    const originalClipPath = canvas.clipPath;
+    canvas.clipPath = undefined;
+
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const workspace = getWorkspace() as fabric.Rect;
+    const { left, top, width, height } = workspace.getBoundingRect();
+
+    try {
+      const svgString = canvas.toSVG({
+        viewBox: {
+          x: left,
+          y: top,
+          width,
+          height,
+        },
+        width: `${width}`,
+        height: `${height}`,
+      });
+
+      const blob = new Blob([svgString], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      downloadFile(url, "svg", "export");
+      URL.revokeObjectURL(url);
+    } finally {
+      canvas.clipPath = originalClipPath;
+      autoZoom();
+    }
+  };
+
+  const saveJpg = () => {
+    const options = generateSaveOptions();
+
+    const originalClipPath = canvas.clipPath;
+    canvas.clipPath = undefined;
+
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    const workspace = getWorkspace() as fabric.Rect;
+    const { left, top, width, height } = workspace.getBoundingRect();
+    try {
+      const dataUrl = canvas.toDataURL({
+        ...options,
+        format: "jpeg",
+        left,
+        top,
+        width,
+        height,
+      });
+
+      downloadFile(dataUrl, "jpg", "export");
+    } finally {
+      canvas.clipPath = originalClipPath;
+      autoZoom();
+    }
+  };
+
+  const saveJson = async () => {
+    const dataUrl = canvas.toObject(JSON_KEYS);
+
+    transformText(dataUrl.objects);
+    const fileString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(dataUrl, null, "\t"),
+    )}`;
+    downloadFile(fileString, "json", "export");
+  };
+
+  const loadJson = (json: string) => {
+    const data = JSON.parse(json);
+
+    canvas.loadFromJSON(data).then(() => {
+      autoZoom();
+    });
+  };
+
   const getWorkspace = () => {
     return canvas
       .getObjects()
@@ -182,6 +323,7 @@ const buildEditor = ({
 
       addToCanvas(triangle);
     },
+    autoZoom,
     bringForward: () => {
       canvas.getActiveObjects().forEach((object) => {
         // Used to be canvas.bringForward(object)
@@ -196,7 +338,27 @@ const buildEditor = ({
       }
       canvas.renderAll();
     },
+    canRedo,
+    canUndo,
     canvas,
+    changeBackground: (color: string) => {
+      const workspace = getWorkspace();
+      workspace?.set({ fill: color });
+      canvas.renderAll();
+      save();
+    },
+    changeDrawColor: (color: string) => {
+      setDrawColor(color);
+      if (canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.color = color;
+      }
+    },
+    changeDrawWidth: (width: number) => {
+      setDrawWidth(width);
+      if (canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.width = width;
+      }
+    },
     changeFillColor: (color: string) => {
       setFillColor(color);
       canvas.getActiveObjects().forEach((object) => {
@@ -273,6 +435,13 @@ const buildEditor = ({
       });
       canvas.renderAll();
     },
+    changeSize: (size: { width: number; height: number }) => {
+      const workspace = getWorkspace();
+
+      workspace?.set(size);
+      autoZoom();
+      save();
+    },
     changeStrokeColor: (color: string) => {
       setStrokeColor(color);
       canvas.getActiveObjects().forEach((object) => {
@@ -314,6 +483,21 @@ const buildEditor = ({
       canvas.discardActiveObject();
       canvas.renderAll();
     },
+    disableDrawingMode: () => {
+      canvas.isDrawingMode = false;
+    },
+    enableDrawingMode: () => {
+      canvas.discardActiveObject();
+      canvas.renderAll();
+      canvas.isDrawingMode = true;
+      if (!canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+      }
+      canvas.freeDrawingBrush.width = drawWidth;
+      canvas.freeDrawingBrush.color = drawColor;
+    },
+    getActiveDrawColor: () => drawColor,
+    getActiveDrawWidth: () => drawWidth,
     getActiveFillColor: () => {
       const selectedObject = selectedObjects[0];
 
@@ -421,8 +605,16 @@ const buildEditor = ({
 
       return value;
     },
+    getWorkspace,
+    loadJson,
     onCopy: () => copy(),
     onPaste: () => paste(),
+    onRedo: () => redo(),
+    onUndo: () => undo(),
+    saveJpg,
+    saveJson,
+    savePng,
+    saveSvg,
     selectedObjects,
     sendBackwards: () => {
       canvas.getActiveObjects().forEach((object) => {
@@ -438,43 +630,94 @@ const buildEditor = ({
       }
       canvas.renderAll();
     },
+    zoomIn: () => {
+      let zoomRatio = canvas.getZoom();
+      zoomRatio += 0.05;
+      const center = canvas.getCenterPoint();
+      canvas.zoomToPoint(center, zoomRatio > 1 ? 1 : zoomRatio);
+    },
+    zoomOut: () => {
+      let zoomRatio = canvas.getZoom();
+      zoomRatio -= 0.05;
+      const center = canvas.getCenterPoint();
+      canvas.zoomToPoint(center, zoomRatio < 0.2 ? 0.2 : zoomRatio);
+    },
   };
 };
 
-export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
+export const useEditor = ({
+  clearSelectionCallback,
+  saveCallback,
+}: EditorHookProps) => {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
 
-  const [fontFamily, setFontFamily] = useState<string>(FONT_FAMILY);
+  const [drawColor, setDrawColor] = useState<string>(STROKE_COLOR);
+  const [drawWidth, setDrawWidth] = useState<number>(STROKE_WIDTH);
   const [fillColor, setFillColor] = useState<string>(FILL_COLOR);
+  const [fontFamily, setFontFamily] = useState<string>(FONT_FAMILY);
   const [strokeColor, setStrokeColor] = useState<string>(STROKE_COLOR);
-  const [strokeWidth, setStrokeWidth] = useState<number>(STROKE_WIDTH);
   const [strokeDashArray, setStrokeDashArray] =
     useState<number[]>(STROKE_DASH_ARRAY);
+  const [strokeWidth, setStrokeWidth] = useState<number>(STROKE_WIDTH);
+
+  const {
+    canRedo,
+    canUndo,
+    canvasHistoryRef,
+    save,
+    setHistoryIndex,
+    redo,
+    undo,
+  } = useHistory({
+    canvas,
+    saveCallback,
+  });
+
+  useWindowEvents(canUndo);
 
   const { copy, paste } = useClipboard({ canvas });
 
-  useAutoResize({
+  const { autoZoom } = useAutoResize({
     canvas,
     container,
   });
 
   useCanvasEvents({
     canvas,
+    save,
     setSelectedObjects,
     clearSelectionCallback,
+  });
+
+  useHotkeys({
+    canvas,
+    copy,
+    paste,
+    save,
+    redo,
+    undo,
   });
 
   const editor = useMemo(() => {
     if (canvas) {
       return buildEditor({
+        autoZoom,
+        canRedo,
+        canUndo,
         canvas,
         copy,
+        drawColor,
+        drawWidth,
         fillColor,
         fontFamily,
         paste,
+        redo,
+        save,
         selectedObjects,
+        setDrawColor,
+        setDrawWidth,
         setFillColor,
         setFontFamily,
         setStrokeColor,
@@ -483,20 +726,29 @@ export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
         strokeColor,
         strokeDashArray,
         strokeWidth,
+        undo,
       });
     }
 
     return undefined;
   }, [
+    autoZoom,
+    canRedo,
+    canUndo,
     canvas,
     copy,
+    drawColor,
+    drawWidth,
     fillColor,
     fontFamily,
     paste,
+    redo,
+    save,
     selectedObjects,
     strokeColor,
     strokeDashArray,
     strokeWidth,
+    undo,
   ]);
 
   const init = useCallback(
@@ -540,8 +792,15 @@ export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
 
       setCanvas(initialCanvas);
       setContainer(initialContainer);
+
+      const currentState = JSON.stringify(initialCanvas.toObject(JSON_KEYS));
+      canvasHistoryRef.current = [currentState];
+      setHistoryIndex(0);
     },
-    [],
+    [
+      canvasHistoryRef, // No need, this is from useRef
+      setHistoryIndex, // No need, this is from useState
+    ],
   );
 
   return {
