@@ -13,6 +13,7 @@ export const Footer = ({ editor }: FooterProps) => {
     <footer className="z-49 flex h-13 w-full shrink-0 flex-row-reverse items-center gap-x-1 overflow-x-auto border-t bg-white p-2 px-4">
       <Hint label="Reset" side="top" sideOffset={10}>
         <Button
+          aria-label="Reset"
           className="h-full"
           size="icon"
           variant="ghost"
@@ -23,6 +24,7 @@ export const Footer = ({ editor }: FooterProps) => {
       </Hint>
       <Hint label="Zoom in" side="top" sideOffset={10}>
         <Button
+          aria-label="Zoom in"
           className="h-full"
           size="icon"
           variant="ghost"
@@ -33,6 +35,7 @@ export const Footer = ({ editor }: FooterProps) => {
       </Hint>
       <Hint label="Zoom out" side="top" sideOffset={10}>
         <Button
+          aria-label="Zoom out"
           className="h-full"
           size="icon"
           variant="ghost"

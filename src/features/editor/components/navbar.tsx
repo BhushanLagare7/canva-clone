@@ -44,7 +44,16 @@ export const Navbar = ({
         const reader = new FileReader();
         reader.readAsText(file, "UTF-8");
         reader.onload = () => {
-          editor?.loadJson(reader.result as string);
+          try {
+            editor?.loadJson(reader.result as string);
+          } catch (error) {
+            console.error("Failed to parse JSON file", error);
+            alert("Failed to parse JSON file");
+          }
+        };
+        reader.onerror = () => {
+          console.error("Failed to read file");
+          alert("Failed to read file");
         };
       }
     },
@@ -90,6 +99,7 @@ export const Navbar = ({
         </Hint>
         <Hint label="Undo" side="bottom" sideOffset={10}>
           <Button
+            aria-label="Undo"
             disabled={!editor?.canUndo()}
             size="icon"
             variant="ghost"
@@ -100,6 +110,7 @@ export const Navbar = ({
         </Hint>
         <Hint label="Redo" side="bottom" sideOffset={10}>
           <Button
+            aria-label="Redo"
             disabled={!editor?.canRedo()}
             size="icon"
             variant="ghost"

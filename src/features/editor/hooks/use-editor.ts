@@ -90,17 +90,20 @@ const buildEditor = ({
     // but toDataURL expects top-left corner coordinates.
     const workspace = getWorkspace() as fabric.Rect;
     const { left, top, width, height } = workspace.getBoundingRect();
-    const dataUrl = canvas.toDataURL({
-      ...options,
-      left,
-      top,
-      width,
-      height,
-    });
+    try {
+      const dataUrl = canvas.toDataURL({
+        ...options,
+        left,
+        top,
+        width,
+        height,
+      });
 
-    canvas.clipPath = originalClipPath;
-    downloadFile(dataUrl, "png");
-    autoZoom();
+      downloadFile(dataUrl, "png", "export");
+    } finally {
+      canvas.clipPath = originalClipPath;
+      autoZoom();
+    }
   };
 
   const saveSvg = () => {
@@ -113,23 +116,26 @@ const buildEditor = ({
     const workspace = getWorkspace() as fabric.Rect;
     const { left, top, width, height } = workspace.getBoundingRect();
 
-    const svgString = canvas.toSVG({
-      viewBox: {
-        x: left,
-        y: top,
-        width,
-        height,
-      },
-      width: `${width}`,
-      height: `${height}`,
-    });
+    try {
+      const svgString = canvas.toSVG({
+        viewBox: {
+          x: left,
+          y: top,
+          width,
+          height,
+        },
+        width: `${width}`,
+        height: `${height}`,
+      });
 
-    canvas.clipPath = originalClipPath;
-    const blob = new Blob([svgString], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    downloadFile(url, "svg");
-    URL.revokeObjectURL(url);
-    autoZoom();
+      const blob = new Blob([svgString], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      downloadFile(url, "svg", "export");
+      URL.revokeObjectURL(url);
+    } finally {
+      canvas.clipPath = originalClipPath;
+      autoZoom();
+    }
   };
 
   const saveJpg = () => {
@@ -141,18 +147,21 @@ const buildEditor = ({
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     const workspace = getWorkspace() as fabric.Rect;
     const { left, top, width, height } = workspace.getBoundingRect();
-    const dataUrl = canvas.toDataURL({
-      ...options,
-      format: "jpeg",
-      left,
-      top,
-      width,
-      height,
-    });
+    try {
+      const dataUrl = canvas.toDataURL({
+        ...options,
+        format: "jpeg",
+        left,
+        top,
+        width,
+        height,
+      });
 
-    canvas.clipPath = originalClipPath;
-    downloadFile(dataUrl, "jpg");
-    autoZoom();
+      downloadFile(dataUrl, "jpg", "export");
+    } finally {
+      canvas.clipPath = originalClipPath;
+      autoZoom();
+    }
   };
 
   const saveJson = async () => {
@@ -162,13 +171,13 @@ const buildEditor = ({
     const fileString = `data:text/json;charset=utf-8,${encodeURIComponent(
       JSON.stringify(dataUrl, null, "\t"),
     )}`;
-    downloadFile(fileString, "json");
+    downloadFile(fileString, "json", "export");
   };
 
   const loadJson = (json: string) => {
     const data = JSON.parse(json);
 
-    canvas.loadFromJSON(data, () => {
+    canvas.loadFromJSON(data).then(() => {
       autoZoom();
     });
   };
@@ -636,7 +645,10 @@ const buildEditor = ({
   };
 };
 
-export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
+export const useEditor = ({
+  clearSelectionCallback,
+  saveCallback,
+}: EditorHookProps) => {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
@@ -650,8 +662,6 @@ export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
     useState<number[]>(STROKE_DASH_ARRAY);
   const [strokeWidth, setStrokeWidth] = useState<number>(STROKE_WIDTH);
 
-  useWindowEvents();
-
   const {
     canRedo,
     canUndo,
@@ -662,7 +672,10 @@ export const useEditor = ({ clearSelectionCallback }: EditorHookProps) => {
     undo,
   } = useHistory({
     canvas,
+    saveCallback,
   });
+
+  useWindowEvents(canUndo);
 
   const { copy, paste } = useClipboard({ canvas });
 

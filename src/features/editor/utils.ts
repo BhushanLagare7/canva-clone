@@ -20,11 +20,11 @@ export function transformText(objects: SerializedObject[] | undefined) {
   });
 }
 
-export function downloadFile(file: string, type: string) {
+export function downloadFile(file: string, type: string, baseName?: string) {
   const anchorElement = document.createElement("a");
 
   anchorElement.href = file;
-  anchorElement.download = `${uuid()}.${type}`;
+  anchorElement.download = baseName ? `${baseName}-${uuid()}.${type}` : `${uuid()}.${type}`;
   document.body.appendChild(anchorElement);
   anchorElement.click();
   anchorElement.remove();

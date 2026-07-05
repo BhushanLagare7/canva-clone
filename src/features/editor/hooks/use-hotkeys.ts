@@ -33,32 +33,32 @@ export const useHotkeys = ({
       canvas?.discardActiveObject();
     }
 
-    if (isCtrlKey && event.key === "z") {
+    if (isCtrlKey && event.key.toLowerCase() === "z") {
       event.preventDefault();
       undo();
     }
 
-    if (isCtrlKey && event.key === "y") {
+    if (isCtrlKey && event.key.toLowerCase() === "y") {
       event.preventDefault();
       redo();
     }
 
-    if (isCtrlKey && event.key === "c") {
+    if (isCtrlKey && event.key.toLowerCase() === "c") {
       event.preventDefault();
       copy();
     }
 
-    if (isCtrlKey && event.key === "v") {
+    if (isCtrlKey && event.key.toLowerCase() === "v") {
       event.preventDefault();
       paste();
     }
 
-    if (isCtrlKey && event.key === "s") {
+    if (isCtrlKey && event.key.toLowerCase() === "s") {
       event.preventDefault();
       save(true);
     }
 
-    if (isCtrlKey && event.key === "a") {
+    if (isCtrlKey && event.key.toLowerCase() === "a") {
       event.preventDefault();
       canvas?.discardActiveObject();
 
