@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "fabric";
 
 import { AiSidebar } from "@/features/editor/components/ai-sidebar";
+import { DrawSidebar } from "@/features/editor/components/draw-sidebar";
 import { FillColorSidebar } from "@/features/editor/components/fill-color-sidebar";
 import { FilterSidebar } from "@/features/editor/components/filter-sidebar";
 import { FontSidebar } from "@/features/editor/components/font-sidebar";
@@ -13,6 +14,7 @@ import { ImageSidebar } from "@/features/editor/components/image-sidebar";
 import { Navbar } from "@/features/editor/components/navbar";
 import { OpacitySidebar } from "@/features/editor/components/opacity-sidebar";
 import { RemoveBgSidebar } from "@/features/editor/components/remove-bg-sidebar";
+import { SettingsSidebar } from "@/features/editor/components/settings-sidebar";
 import { ShapeSidebar } from "@/features/editor/components/shape-sidebar";
 import { Sidebar } from "@/features/editor/components/sidebar";
 import { StrokeColorSidebar } from "@/features/editor/components/stroke-color-sidebar";
@@ -25,27 +27,6 @@ import { ActiveTool, selectionDependentTools } from "@/features/editor/types";
 export const Editor = () => {
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
 
-  const onChangeActiveTool = useCallback(
-    (tool: ActiveTool) => {
-      if (tool === activeTool) {
-        if (activeTool === "draw") {
-          // TODO: Disable draw mode
-        }
-
-        return setActiveTool("select");
-      }
-
-      if (tool === "draw") {
-        // TODO: Enable draw mode
-      } else if (activeTool === "draw") {
-        // TODO: Disable draw mode
-      }
-
-      setActiveTool(tool);
-    },
-    [activeTool],
-  );
-
   const onClearSelection = useCallback(() => {
     if (selectionDependentTools.includes(activeTool)) {
       setActiveTool("select");
@@ -55,6 +36,25 @@ export const Editor = () => {
   const { init, editor } = useEditor({
     clearSelectionCallback: onClearSelection,
   });
+
+  const onChangeActiveTool = useCallback(
+    (tool: ActiveTool) => {
+      if (tool === "draw") {
+        editor?.enableDrawingMode();
+      }
+
+      if (activeTool === "draw") {
+        editor?.disableDrawingMode();
+      }
+
+      if (tool === activeTool) {
+        return setActiveTool("select");
+      }
+
+      setActiveTool(tool);
+    },
+    [activeTool, editor],
+  );
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const container = useRef<HTMLDivElement>(null);
@@ -79,7 +79,11 @@ export const Editor = () => {
 
   return (
     <div className="flex h-screen flex-col">
-      <Navbar activeTool={activeTool} onChangeActiveTool={onChangeActiveTool} />
+      <Navbar
+        activeTool={activeTool}
+        editor={editor}
+        onChangeActiveTool={onChangeActiveTool}
+      />
       <div className="flex h-full min-h-0 flex-1 overflow-hidden">
         <Sidebar
           activeTool={activeTool}
@@ -140,6 +144,16 @@ export const Editor = () => {
           editor={editor}
           onChangeActiveTool={onChangeActiveTool}
         />
+        <DrawSidebar
+          activeTool={activeTool}
+          editor={editor}
+          onChangeActiveTool={onChangeActiveTool}
+        />
+        <SettingsSidebar
+          activeTool={activeTool}
+          editor={editor}
+          onChangeActiveTool={onChangeActiveTool}
+        />
         <main className="bg-muted relative flex flex-1 flex-col overflow-auto">
           <Toolbar
             activeTool={activeTool}
@@ -152,7 +166,7 @@ export const Editor = () => {
           >
             <canvas ref={canvasRef} />
           </div>
-          <Footer />
+          <Footer editor={editor} />
         </main>
       </div>
     </div>

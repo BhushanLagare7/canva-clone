@@ -1,6 +1,34 @@
 import type { RGBColor } from "react-color";
 
 import * as fabric from "fabric";
+import { v4 as uuid } from "uuid";
+
+export interface SerializedObject {
+  type: string;
+  objects?: SerializedObject[];
+}
+
+export function transformText(objects: SerializedObject[] | undefined) {
+  if (!objects) return;
+
+  objects.forEach((item) => {
+    if (item.objects) {
+      transformText(item.objects);
+    } else if (item.type === "text") {
+      item.type = "textbox";
+    }
+  });
+}
+
+export function downloadFile(file: string, type: string) {
+  const anchorElement = document.createElement("a");
+
+  anchorElement.href = file;
+  anchorElement.download = `${uuid()}.${type}`;
+  document.body.appendChild(anchorElement);
+  anchorElement.click();
+  anchorElement.remove();
+}
 
 /**
  * Checks if a given fabric object type is a text-based type.

@@ -1,6 +1,17 @@
 import * as fabric from "fabric";
 import material from "material-colors";
 
+export const JSON_KEYS = [
+  "editable",
+  "extension",
+  "extensionType",
+  "gradientAngle",
+  "hasControls",
+  "linkData",
+  "name",
+  "selectable",
+];
+
 export const filters = [
   "blacknwhite",
   "blendcolor",
@@ -159,12 +170,21 @@ export interface EditorHookProps {
 }
 
 export type BuildEditorProps = {
+  autoZoom: () => void;
+  canRedo: () => boolean;
+  canUndo: () => boolean;
   canvas: fabric.Canvas;
   copy: () => Promise<void>;
+  drawColor: string;
+  drawWidth: number;
   fillColor: string;
   fontFamily: string;
   paste: () => Promise<void>;
+  redo: () => void;
+  save: (skip?: boolean) => void;
   selectedObjects: fabric.Object[];
+  setDrawColor: (color: string) => void;
+  setDrawWidth: (width: number) => void;
   setFillColor: (color: string) => void;
   setFontFamily: (fontFamily: string) => void;
   setStrokeColor: (color: string) => void;
@@ -173,6 +193,7 @@ export type BuildEditorProps = {
   strokeColor: string;
   strokeDashArray: number[];
   strokeWidth: number;
+  undo: () => void;
 };
 
 export interface Editor {
@@ -184,8 +205,14 @@ export interface Editor {
   addSoftRectangle: () => void;
   addText: (text: string, options?: Partial<fabric.TextboxProps>) => void;
   addTriangle: () => void;
+  autoZoom: () => void;
   bringForward: () => void;
+  canRedo: () => boolean;
+  canUndo: () => boolean;
   canvas: fabric.Canvas;
+  changeBackground: (color: string) => void;
+  changeDrawColor: (color: string) => void;
+  changeDrawWidth: (width: number) => void;
   changeFillColor: (color: string) => void;
   changeFontFamily: (fontFamily: string) => void;
   changeFontLinethrough: (value: boolean) => void;
@@ -195,11 +222,16 @@ export interface Editor {
   changeFontWeight: (weight: number) => void;
   changeImageFilter: (filter: string) => void;
   changeOpacity: (opacity: number) => void;
+  changeSize: (size: { width: number; height: number }) => void;
   changeStrokeColor: (color: string) => void;
-  changeStrokeDashArray: (array: number[]) => void;
+  changeStrokeDashArray: (value: number[]) => void;
   changeStrokeWidth: (width: number) => void;
   changeTextAlign: (align: fabric.TextProps["textAlign"]) => void;
   delete: () => void;
+  disableDrawingMode: () => void;
+  enableDrawingMode: () => void;
+  getActiveDrawColor: () => string;
+  getActiveDrawWidth: () => number;
   getActiveFillColor: () => string;
   getActiveFontFamily: () => string;
   getActiveFontLinethrough: () => boolean;
@@ -212,8 +244,18 @@ export interface Editor {
   getActiveStrokeDashArray: () => number[];
   getActiveStrokeWidth: () => number;
   getActiveTextAlign: () => fabric.TextProps["textAlign"];
+  getWorkspace: () => fabric.FabricObject | undefined;
+  loadJson: (json: string) => void;
   onCopy: () => Promise<void>;
   onPaste: () => Promise<void>;
+  onRedo: () => void;
+  onUndo: () => void;
+  saveJpg: () => void;
+  saveJson: () => void;
+  savePng: () => void;
+  saveSvg: () => void;
   selectedObjects: fabric.Object[];
   sendBackwards: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
 }
