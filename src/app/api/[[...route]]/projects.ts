@@ -1,11 +1,28 @@
 import { verifyAuth } from "@hono/auth-js";
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { Context, Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import { db } from "@/db/drizzle";
 import { projects, projectsInsertSchema } from "@/db/schema";
+
+const paginationSchema = z.object({
+  page: z.coerce.number().int().min(1),
+  limit: z.coerce.number().int().min(1).max(100),
+});
+
+const requireUserId = (c: Context) => {
+  const auth = c.get("authUser");
+  const userId = auth?.token?.id;
+  if (!userId) {
+    throw new HTTPException(401, {
+      res: c.json({ error: "Unauthorized" }, 401),
+    });
+  }
+  return userId as string;
+};
 
 /**
  * Projects API routes.
@@ -20,13 +37,7 @@ const app = new Hono()
   .get(
     "/templates",
     verifyAuth(),
-    zValidator(
-      "query",
-      z.object({
-        page: z.coerce.number(),
-        limit: z.coerce.number(),
-      }),
-    ),
+    zValidator("query", paginationSchema),
     async (c) => {
       const { page, limit } = c.req.valid("query");
 
@@ -50,16 +61,12 @@ const app = new Hono()
     verifyAuth(),
     zValidator("param", z.object({ id: z.string() })),
     async (c) => {
-      const auth = c.get("authUser");
+      const userId = requireUserId(c);
       const { id } = c.req.valid("param");
-
-      if (!auth.token?.id) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
 
       const data = await db
         .delete(projects)
-        .where(and(eq(projects.id, id), eq(projects.userId, auth.token.id)))
+        .where(and(eq(projects.id, id), eq(projects.userId, userId)))
         .returning();
 
       if (data.length === 0) {
@@ -78,17 +85,13 @@ const app = new Hono()
     verifyAuth(),
     zValidator("param", z.object({ id: z.string() })),
     async (c) => {
-      const auth = c.get("authUser");
+      const userId = requireUserId(c);
       const { id } = c.req.valid("param");
-
-      if (!auth.token?.id) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
 
       const data = await db
         .select()
         .from(projects)
-        .where(and(eq(projects.id, id), eq(projects.userId, auth.token.id)));
+        .where(and(eq(projects.id, id), eq(projects.userId, userId)));
 
       if (data.length === 0) {
         return c.json({ error: " Not found" }, 404);
@@ -104,7 +107,7 @@ const app = new Hono()
           json: project.json,
           width: project.width,
           height: project.height,
-          userId: auth.token.id,
+          userId,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -118,38 +121,23 @@ const app = new Hono()
    * Fetch paginated list of projects belonging to the authenticated user,
    * sorted by most recently updated. Supports cursor-style pagination via `nextPage`.
    */
-  .get(
-    "/",
-    verifyAuth(),
-    zValidator(
-      "query",
-      z.object({
-        page: z.coerce.number(),
-        limit: z.coerce.number(),
-      }),
-    ),
-    async (c) => {
-      const auth = c.get("authUser");
-      const { page, limit } = c.req.valid("query");
+  .get("/", verifyAuth(), zValidator("query", paginationSchema), async (c) => {
+    const userId = requireUserId(c);
+    const { page, limit } = c.req.valid("query");
 
-      if (!auth.token?.id) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
+    const data = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.userId, userId))
+      .limit(limit)
+      .offset((page - 1) * limit)
+      .orderBy(desc(projects.updatedAt));
 
-      const data = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.userId, auth.token.id))
-        .limit(limit)
-        .offset((page - 1) * limit)
-        .orderBy(desc(projects.updatedAt));
-
-      return c.json({
-        data,
-        nextPage: data.length === limit ? page + 1 : null,
-      });
-    },
-  )
+    return c.json({
+      data,
+      nextPage: data.length === limit ? page + 1 : null,
+    });
+  })
   /**
    * PATCH /:id
    * Partially update a project owned by the authenticated user.
@@ -166,17 +154,16 @@ const app = new Hono()
           userId: true,
           createdAt: true,
           updatedAt: true,
+          isTemplate: true,
+          isPro: true,
+          thumbnailUrl: true,
         })
         .partial(),
     ),
     async (c) => {
-      const auth = c.get("authUser");
+      const userId = requireUserId(c);
       const { id } = c.req.valid("param");
       const values = c.req.valid("json");
-
-      if (!auth.token?.id) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
 
       const data = await db
         .update(projects)
@@ -184,11 +171,11 @@ const app = new Hono()
           ...values,
           updatedAt: new Date(),
         })
-        .where(and(eq(projects.id, id), eq(projects.userId, auth.token.id)))
+        .where(and(eq(projects.id, id), eq(projects.userId, userId)))
         .returning();
 
       if (data.length === 0) {
-        return c.json({ error: "Unauthorized" }, 401);
+        return c.json({ error: "Not found" }, 404);
       }
 
       return c.json({ data: data[0] });
@@ -203,17 +190,13 @@ const app = new Hono()
     verifyAuth(),
     zValidator("param", z.object({ id: z.string() })),
     async (c) => {
-      const auth = c.get("authUser");
+      const userId = requireUserId(c);
       const { id } = c.req.valid("param");
-
-      if (!auth.token?.id) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
 
       const data = await db
         .select()
         .from(projects)
-        .where(and(eq(projects.id, id), eq(projects.userId, auth.token.id)));
+        .where(and(eq(projects.id, id), eq(projects.userId, userId)));
 
       if (data.length === 0) {
         return c.json({ error: "Not found" }, 404);
@@ -239,12 +222,8 @@ const app = new Hono()
       }),
     ),
     async (c) => {
-      const auth = c.get("authUser");
+      const userId = requireUserId(c);
       const { name, json, height, width } = c.req.valid("json");
-
-      if (!auth.token?.id) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
 
       const data = await db
         .insert(projects)
@@ -253,7 +232,7 @@ const app = new Hono()
           json,
           width,
           height,
-          userId: auth.token.id,
+          userId,
           createdAt: new Date(),
           updatedAt: new Date(),
         })

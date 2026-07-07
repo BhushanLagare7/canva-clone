@@ -39,6 +39,7 @@ export const Editor = ({ initialData }: EditorProps) => {
   }, [activeTool]);
 
   const { init, editor } = useEditor({
+    initialData,
     clearSelectionCallback: onClearSelection,
   });
 

@@ -15,6 +15,13 @@
       "when": 1783433720864,
       "tag": "0001_dear_wither",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783438952923,
+      "tag": "0002_huge_miracleman",
+      "breakpoints": true
     }
   ]
 }

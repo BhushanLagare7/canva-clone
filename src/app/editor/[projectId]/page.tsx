@@ -13,14 +13,6 @@ const EditorProjectIdPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { data, isLoading, isError } = useGetProject(projectId);
 
-  if (isLoading || !data) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center">
-        <LoaderIcon className="text-muted-foreground size-6 animate-spin" />
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-y-5">
@@ -29,6 +21,14 @@ const EditorProjectIdPage = () => {
         <Button asChild variant="secondary">
           <Link href="/">Back to Home</Link>
         </Button>
+      </div>
+    );
+  }
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center">
+        <LoaderIcon className="text-muted-foreground size-6 animate-spin" />
       </div>
     );
   }

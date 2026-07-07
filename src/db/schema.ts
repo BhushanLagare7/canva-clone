@@ -2,6 +2,7 @@ import type { AdapterAccountType } from "@auth/core/adapters";
 import { relations } from "drizzle-orm";
 import {
   boolean,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -92,25 +93,29 @@ export const authenticators = pgTable(
   ],
 );
 
-export const projects = pgTable("project", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, {
-      onDelete: "cascade",
-    }),
-  json: text("json").notNull(),
-  height: integer("height").notNull(),
-  width: integer("width").notNull(),
-  thumbnailUrl: text("thumbnailUrl"),
-  isTemplate: boolean("isTemplate"),
-  isPro: boolean("isPro"),
-  createdAt: timestamp("createdAt", { mode: "date" }).notNull(),
-  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull(),
-});
+export const projects = pgTable(
+  "project",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "cascade",
+      }),
+    json: text("json").notNull(),
+    height: integer("height").notNull(),
+    width: integer("width").notNull(),
+    thumbnailUrl: text("thumbnailUrl"),
+    isTemplate: boolean("isTemplate").notNull().default(false),
+    isPro: boolean("isPro").notNull().default(false),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull(),
+  },
+  (project) => [index("userId_idx").on(project.userId)],
+);
 
 export const projectsRelations = relations(projects, ({ one }) => ({
   user: one(users, {
