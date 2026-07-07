@@ -8,6 +8,7 @@ import { extractRouterConfig } from "uploadthing/server";
 
 import { ourFileRouter } from "@/app/api/uploadthing/core";
 import { Providers } from "@/components/providers";
+import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -46,7 +47,10 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
-        <Providers>{children}</Providers>
+        <Providers>
+          <Toaster />
+          {children}
+        </Providers>
       </body>
     </html>
   );

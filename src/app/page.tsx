@@ -1,9 +1,11 @@
-import { Button } from "@/components/ui/button";
+import { protectServer } from "@/features/auth/utils";
 
-export default function Home() {
+export default async function Home() {
+  const session = await protectServer();
+
   return (
     <div>
-      <Button>Click me</Button>
+      <p>Logged in as {session.user?.email}</p>
     </div>
   );
 }
