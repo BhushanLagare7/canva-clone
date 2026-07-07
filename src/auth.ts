@@ -1,6 +1,6 @@
 import "next-auth/jwt";
 
-import NextAuth from "next-auth";
+import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -25,6 +25,14 @@ declare module "next-auth/jwt" {
    */
   interface JWT {
     id: string | undefined;
+  }
+}
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+    } & DefaultSession["user"];
   }
 }
 
@@ -60,7 +68,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        return user;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password: _, ...sanitizedUser } = user;
+        return sanitizedUser;
       },
     }),
     GitHub({

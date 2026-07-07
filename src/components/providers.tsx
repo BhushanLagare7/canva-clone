@@ -1,5 +1,7 @@
 "use client";
 
+import { ThemeProvider } from "next-themes";
+
 import { QueryProvider } from "@/components/query-provider";
 
 interface ProvidersProps {
@@ -7,5 +9,9 @@ interface ProvidersProps {
 }
 
 export const Providers = ({ children }: ProvidersProps) => {
-  return <QueryProvider>{children}</QueryProvider>;
+  return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <QueryProvider>{children}</QueryProvider>
+    </ThemeProvider>
+  );
 };

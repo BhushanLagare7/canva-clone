@@ -23,18 +23,24 @@ import { Separator } from "@/components/ui/separator";
 export const SignInCard = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPending, setIsPending] = useState(false);
 
   const params = useSearchParams();
   const error = params.get("error");
 
-  const onCredentialSignIn = (e: React.SubmitEvent<HTMLFormElement>) => {
+  const onCredentialSignIn = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsPending(true);
 
-    signIn("credentials", {
-      email: email,
-      password: password,
-      callbackUrl: "/",
-    });
+    try {
+      await signIn("credentials", {
+        email: email,
+        password: password,
+        callbackUrl: "/",
+      });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const onProviderSignIn = (provider: "github" | "google") => {
@@ -58,6 +64,7 @@ export const SignInCard = () => {
       <CardContent className="space-y-5 px-0 pb-0">
         <form className="space-y-2.5" onSubmit={onCredentialSignIn}>
           <Input
+            disabled={isPending}
             placeholder="Email"
             required
             type="email"
@@ -65,13 +72,14 @@ export const SignInCard = () => {
             onChange={(e) => setEmail(e.target.value)}
           />
           <Input
+            disabled={isPending}
             placeholder="Password"
             required
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button className="w-full" size="lg" type="submit">
+          <Button className="w-full" disabled={isPending} size="lg" type="submit">
             Continue
           </Button>
         </form>
@@ -79,6 +87,7 @@ export const SignInCard = () => {
         <div className="flex flex-col gap-y-2.5">
           <Button
             className="relative w-full"
+            disabled={isPending}
             size="lg"
             variant="outline"
             onClick={() => onProviderSignIn("google")}
@@ -88,6 +97,7 @@ export const SignInCard = () => {
           </Button>
           <Button
             className="relative w-full"
+            disabled={isPending}
             size="lg"
             variant="outline"
             onClick={() => onProviderSignIn("github")}

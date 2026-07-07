@@ -7,6 +7,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 
 import { TriangleAlertIcon } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -41,12 +42,16 @@ export const SignUpCard = () => {
         password,
       },
       {
-        onSuccess: () => {
-          signIn("credentials", {
-            email,
-            password,
-            callbackUrl: "/",
-          });
+        onSuccess: async () => {
+          try {
+            await signIn("credentials", {
+              email,
+              password,
+              callbackUrl: "/",
+            });
+          } catch {
+            toast.error("Account created but sign-in failed. Please sign in manually.");
+          }
         },
       },
     );
@@ -63,7 +68,7 @@ export const SignUpCard = () => {
       {!!mutation.error && (
         <div className="bg-destructive/15 text-destructive mb-6 flex items-center gap-x-2 rounded-md p-3 text-sm">
           <TriangleAlertIcon className="size-4" />
-          <p>Something went wrong</p>
+          <p>{mutation.error.message}</p>
         </div>
       )}
       <CardContent className="space-y-5 px-0 pb-0">
@@ -87,7 +92,7 @@ export const SignUpCard = () => {
           <Input
             disabled={mutation.isPending}
             maxLength={20}
-            minLength={3}
+            minLength={8}
             placeholder="Password"
             required
             type="password"
