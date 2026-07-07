@@ -29,8 +29,7 @@ export const UserButton = () => {
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger className="relative outline-none">
-        {/* Show a crown icon if the user is blocked until payment functionality is complete */}
+      <DropdownMenuTrigger className="relative rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <Avatar className="size-10 transition hover:opacity-75">
           <AvatarImage alt={name} src={imageUrl || ""} />
           <AvatarFallback className="flex items-center justify-center bg-blue-500 font-medium text-white">
@@ -39,7 +38,7 @@ export const UserButton = () => {
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuItem className="h-10">
+        <DropdownMenuItem className="h-10" disabled>
           <CreditCardIcon className="mr-2 size-4" />
           Billing
         </DropdownMenuItem>

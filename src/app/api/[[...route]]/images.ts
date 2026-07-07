@@ -3,7 +3,7 @@ import { Hono } from "hono";
 
 import { unsplash } from "@/lib/unsplash";
 
-const DEFAULT_COUNT = 50;
+const DEFAULT_COUNT = 30;
 const DEFAULT_COLLECTION_IDS = ["317099"];
 
 const app = new Hono().get("/", verifyAuth(), async (c) => {
