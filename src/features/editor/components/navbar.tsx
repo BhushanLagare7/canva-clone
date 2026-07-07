@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { UserButton } from "@/features/auth/components/user-button";
 import { Logo } from "@/features/editor/components/logo";
 import { ActiveTool, Editor } from "@/features/editor/types";
 import { cn } from "@/lib/utils";
@@ -183,7 +184,7 @@ export const Navbar = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* TODO: Add user button */}
+          <UserButton />
         </div>
       </div>
     </nav>

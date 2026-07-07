@@ -1,3 +1,4 @@
+import { verifyAuth } from "@hono/auth-js";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -13,7 +14,7 @@ const app = new Hono()
    */
   .post(
     "/remove-bg",
-    // Add auth verification here
+    verifyAuth(),
     zValidator(
       "json",
       z.object({
@@ -75,7 +76,7 @@ const app = new Hono()
    */
   .post(
     "/generate-image",
-    // Add auth verification here
+    verifyAuth(),
     zValidator(
       "json",
       z.object({
