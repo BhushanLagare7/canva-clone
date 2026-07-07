@@ -6,6 +6,7 @@ import authConfig from "@/auth.config";
 
 import ai from "./ai";
 import images from "./images";
+import projects from "./projects";
 import users from "./users";
 
 // Revert to "edge" if planning on running on the edge
@@ -25,6 +26,7 @@ app.use("*", initAuthConfig(getAuthConfig));
 const routes = app
   .route("/ai", ai)
   .route("/images", images)
+  .route("/projects", projects)
   .route("/users", users);
 
 export const GET = handle(routes);
