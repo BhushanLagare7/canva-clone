@@ -1,7 +1,6 @@
 import * as fabric from "fabric";
 import material from "material-colors";
 
-
 export const JSON_KEYS = [
   "editable",
   "extension",
@@ -168,6 +167,9 @@ export const TEXT_OPTIONS = {
 
 export interface EditorHookProps {
   clearSelectionCallback?: () => void;
+  defaultHeight?: number;
+  defaultState?: string;
+  defaultWidth?: number;
   saveCallback?: (values: {
     json: string;
     height: number;

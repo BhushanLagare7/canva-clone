@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import * as fabric from "fabric";
 import { FabricObject } from "fabric";
@@ -8,6 +8,7 @@ import { useCanvasEvents } from "@/features/editor/hooks/use-canvas-events";
 import { useClipboard } from "@/features/editor/hooks/use-clipboard";
 import { useHistory } from "@/features/editor/hooks/use-history";
 import { useHotkeys } from "@/features/editor/hooks/use-hotkeys";
+import { useLoadState } from "@/features/editor/hooks/use-load-state";
 import { useWindowEvents } from "@/features/editor/hooks/use-window-events";
 import {
   BuildEditorProps,
@@ -647,8 +648,15 @@ const buildEditor = ({
 
 export const useEditor = ({
   clearSelectionCallback,
+  defaultHeight,
+  defaultState,
+  defaultWidth,
   saveCallback,
 }: EditorHookProps) => {
+  const initialState = useRef(defaultState);
+  const initialWidth = useRef(defaultWidth);
+  const initialHeight = useRef(defaultHeight);
+
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
@@ -698,6 +706,14 @@ export const useEditor = ({
     save,
     redo,
     undo,
+  });
+
+  useLoadState({
+    canvas,
+    autoZoom,
+    initialState,
+    canvasHistory: canvasHistoryRef,
+    setHistoryIndex,
   });
 
   const editor = useMemo(() => {
@@ -769,8 +785,8 @@ export const useEditor = ({
         cornerStrokeColor: "#3B82F6",
       });
       const initialWorkspace = new fabric.Rect({
-        width: 900,
-        height: 1200,
+        width: initialWidth.current,
+        height: initialHeight.current,
         name: "clip",
         fill: "white",
         selectable: false,

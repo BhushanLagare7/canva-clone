@@ -41,9 +41,12 @@ export const useHistory = ({ canvas, saveCallback }: UseHistoryProps) => {
 
       const workspace = canvas
         .getObjects()
-        .find((object) => (object as fabric.FabricObject & { name?: string }).name === "clip");
-      const height = workspace?.height || 0;
-      const width = workspace?.width || 0;
+        .find(
+          (object) =>
+            (object as fabric.FabricObject & { name?: string }).name === "clip",
+        );
+      const height = workspace?.height ?? 0;
+      const width = workspace?.width ?? 0;
 
       saveCallback?.({ json, height, width });
     },
