@@ -646,7 +646,6 @@ const buildEditor = ({
 };
 
 export const useEditor = ({
-  initialData,
   clearSelectionCallback,
   saveCallback,
 }: EditorHookProps) => {
@@ -769,13 +768,9 @@ export const useEditor = ({
         borderOpacityWhenMoving: 1,
         cornerStrokeColor: "#3B82F6",
       });
-
-      const width = initialData?.width || 900;
-      const height = initialData?.height || 1200;
-
       const initialWorkspace = new fabric.Rect({
-        width,
-        height,
+        width: 900,
+        height: 1200,
         name: "clip",
         fill: "white",
         selectable: false,
@@ -795,45 +790,16 @@ export const useEditor = ({
       initialCanvas.centerObject(initialWorkspace);
       initialCanvas.clipPath = initialWorkspace;
 
-      if (initialData?.json) {
-        const data = JSON.parse(initialData.json);
-        initialCanvas.loadFromJSON(data).then(() => {
-          const workspace = initialCanvas
-            .getObjects()
-            .find(
-              (object) =>
-                (object as fabric.FabricObject & { name?: string }).name === "clip",
-            );
+      setCanvas(initialCanvas);
+      setContainer(initialContainer);
 
-          if (workspace) {
-            initialCanvas.centerObject(workspace);
-            initialCanvas.clipPath = workspace;
-          }
-
-          initialCanvas.renderAll();
-          autoZoom();
-
-          setCanvas(initialCanvas);
-          setContainer(initialContainer);
-
-          const currentState = JSON.stringify(initialCanvas.toObject(JSON_KEYS));
-          canvasHistoryRef.current = [currentState];
-          setHistoryIndex(0);
-        });
-      } else {
-        setCanvas(initialCanvas);
-        setContainer(initialContainer);
-
-        const currentState = JSON.stringify(initialCanvas.toObject(JSON_KEYS));
-        canvasHistoryRef.current = [currentState];
-        setHistoryIndex(0);
-      }
+      const currentState = JSON.stringify(initialCanvas.toObject(JSON_KEYS));
+      canvasHistoryRef.current = [currentState];
+      setHistoryIndex(0);
     },
     [
-      initialData,
-      autoZoom,
-      canvasHistoryRef,
-      setHistoryIndex,
+      canvasHistoryRef, // No need, this is from useRef
+      setHistoryIndex, // No need, this is from useState
     ],
   );
 

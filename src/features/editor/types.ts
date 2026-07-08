@@ -1,7 +1,6 @@
 import * as fabric from "fabric";
 import material from "material-colors";
 
-import { ResponseType } from "@/features/projects/api/use-get-project";
 
 export const JSON_KEYS = [
   "editable",
@@ -168,7 +167,6 @@ export const TEXT_OPTIONS = {
 };
 
 export interface EditorHookProps {
-  initialData?: ResponseType["data"];
   clearSelectionCallback?: () => void;
   saveCallback?: (values: {
     json: string;
