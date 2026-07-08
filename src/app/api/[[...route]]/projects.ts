@@ -8,11 +8,17 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { projects, projectsInsertSchema } from "@/db/schema";
 
+// Pagination schema for paginated routes.
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1),
   limit: z.coerce.number().int().min(1).max(100),
 });
 
+/**
+ * Helper function to get user ID from auth token.
+ * @param c Context
+ * @returns User ID
+ */
 const requireUserId = (c: Context) => {
   const auth = c.get("authUser");
   const userId = auth?.token?.id;
@@ -154,9 +160,6 @@ const app = new Hono()
           userId: true,
           createdAt: true,
           updatedAt: true,
-          isTemplate: true,
-          isPro: true,
-          thumbnailUrl: true,
         })
         .partial(),
     ),

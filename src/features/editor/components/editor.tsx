@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Canvas } from "fabric";
+import debounce from "lodash.debounce";
 
 import { AiSidebar } from "@/features/editor/components/ai-sidebar";
 import { DrawSidebar } from "@/features/editor/components/draw-sidebar";
@@ -24,12 +25,29 @@ import { Toolbar } from "@/features/editor/components/toolbar";
 import { useEditor } from "@/features/editor/hooks/use-editor";
 import { ActiveTool, selectionDependentTools } from "@/features/editor/types";
 import { ResponseType } from "@/features/projects/api/use-get-project";
+import { useUpdateProject } from "@/features/projects/api/use-update-project";
 
 interface EditorProps {
   initialData: ResponseType["data"];
 }
 
 export const Editor = ({ initialData }: EditorProps) => {
+  const { mutate } = useUpdateProject(initialData.id);
+
+  const debouncedSave = useMemo(
+    () =>
+      debounce((values: { json: string; height: number; width: number }) => {
+        mutate(values);
+      }, 500),
+    [mutate],
+  );
+
+  useEffect(() => {
+    return () => {
+      debouncedSave.cancel();
+    };
+  }, [debouncedSave]);
+
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
 
   const onClearSelection = useCallback(() => {
@@ -39,7 +57,11 @@ export const Editor = ({ initialData }: EditorProps) => {
   }, [activeTool]);
 
   const { init, editor } = useEditor({
+    defaultState: initialData.json,
+    defaultWidth: initialData.width,
+    defaultHeight: initialData.height,
     clearSelectionCallback: onClearSelection,
+    saveCallback: debouncedSave,
   });
 
   const onChangeActiveTool = useCallback(
@@ -87,6 +109,7 @@ export const Editor = ({ initialData }: EditorProps) => {
       <Navbar
         activeTool={activeTool}
         editor={editor}
+        id={initialData.id}
         onChangeActiveTool={onChangeActiveTool}
       />
       <div className="flex h-full min-h-0 flex-1 overflow-hidden">
