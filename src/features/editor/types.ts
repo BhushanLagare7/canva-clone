@@ -1,6 +1,7 @@
 import * as fabric from "fabric";
 import material from "material-colors";
 
+
 export const JSON_KEYS = [
   "editable",
   "extension",
