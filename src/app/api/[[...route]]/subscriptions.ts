@@ -17,7 +17,7 @@ import Stripe from "stripe";
 import { db } from "@/db/drizzle";
 import { subscriptions } from "@/db/schema";
 import { checkIsActive } from "@/features/subscriptions/lib";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 
 /**
  * Hono application instance containing all subscription-related routes.
@@ -66,6 +66,7 @@ const app = new Hono()
      * Create a Stripe billing portal session.
      * The customer is redirected back to the app after managing their subscription.
      */
+    const stripe = getStripe();
     const session = await stripe.billingPortal.sessions.create({
       customer: subscription.customerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}`,
@@ -165,13 +166,18 @@ const app = new Hono()
      * - billing_address_collection: Automatically determines if address is needed
      * - metadata: Stores userId for linking subscription to user in webhook handler
      */
+    const stripe = getStripe();
+    if (!process.env.NEXT_PUBLIC_APP_URL || !process.env.STRIPE_PRICE_ID) {
+      return c.json({ error: "Missing Stripe configuration" }, 500);
+    }
+
     const session = await stripe.checkout.sessions.create({
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}?success=1`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}?canceled=1`,
       payment_method_types: ["card", "paypal"],
       mode: "subscription",
       billing_address_collection: "auto",
-      customer_email: auth.token.email ?? "",
+      ...(auth.token.email ? { customer_email: auth.token.email } : {}),
       line_items: [
         {
           price: process.env.STRIPE_PRICE_ID, // Stripe Price ID from environment config
@@ -225,6 +231,7 @@ const app = new Hono()
      * Throws an error if signature is invalid or webhook secret is incorrect.
      */
     try {
+      const stripe = getStripe();
       event = stripe.webhooks.constructEvent(
         body,
         signature,
@@ -243,7 +250,7 @@ const app = new Hono()
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      // Retrieve full subscription details from Stripe using session's subscription ID
+      const stripe = getStripe();
       const subscription = await stripe.subscriptions.retrieve(
         session.subscription as string,
       );
@@ -260,18 +267,33 @@ const app = new Hono()
        * - Stripe IDs for future API operations (subscriptionId, customerId, priceId)
        * - Current period end converted from Unix timestamp to JavaScript Date
        */
-      await db.insert(subscriptions).values({
-        status: subscription.status,
-        userId: session.metadata.userId,
-        subscriptionId: subscription.id,
-        customerId: subscription.customer as string,
-        priceId: subscription.items.data[0].price.product as string,
-        currentPeriodEnd: new Date(
-          subscription.items.data[0].current_period_end * 1000, // Convert Unix timestamp to ms
-        ),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      await db
+        .insert(subscriptions)
+        .values({
+          status: subscription.status,
+          userId: session.metadata.userId,
+          subscriptionId: subscription.id,
+          customerId: subscription.customer as string,
+          priceId: subscription.items.data[0].price.id,
+          currentPeriodEnd: new Date(
+            subscription.items.data[0].current_period_end * 1000, // Convert Unix timestamp to ms
+          ),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: subscriptions.subscriptionId,
+          set: {
+            status: subscription.status,
+            userId: session.metadata.userId,
+            customerId: subscription.customer as string,
+            priceId: subscription.items.data[0].price.id,
+            currentPeriodEnd: new Date(
+              subscription.items.data[0].current_period_end * 1000,
+            ),
+            updatedAt: new Date(),
+          },
+        });
     }
 
     /**
@@ -290,7 +312,7 @@ const app = new Hono()
         return c.json({ error: "No subscription ID found on invoice parent" }, 400);
       }
 
-      // Retrieve updated subscription details from Stripe
+      const stripe = getStripe();
       const subscription = await stripe.subscriptions.retrieve(
         subscriptionId,
       );

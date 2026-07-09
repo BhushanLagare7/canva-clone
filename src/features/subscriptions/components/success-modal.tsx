@@ -29,7 +29,7 @@ export const SuccessModal = () => {
         <DialogHeader className="flex items-center space-y-4">
           <Image alt="Logo" height={36} src="/logo.svg" width={36} />
           <DialogTitle className="text-center">
-            Subscription successfull!
+            Subscription successful!
           </DialogTitle>
           <DialogDescription className="text-center">
             You have successfully subscribed to our service

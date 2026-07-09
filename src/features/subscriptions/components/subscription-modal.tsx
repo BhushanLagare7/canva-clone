@@ -62,6 +62,11 @@ export const SubscriptionModal = () => {
           >
             Upgrade
           </Button>
+          {mutation.isError && (
+            <p className="text-center text-sm text-destructive mt-2">
+              {mutation.error?.message || "Failed to initiate checkout"}
+            </p>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "subscription_subscriptionId_idx" ON "subscription" USING btree ("subscriptionId");--> statement-breakpoint
+CREATE INDEX "subscription_userId_idx" ON "subscription" USING btree ("userId");

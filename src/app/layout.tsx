@@ -1,7 +1,7 @@
 import "./globals.css";
 
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import dynamic from "next/dynamic";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 
@@ -10,13 +10,9 @@ import { extractRouterConfig } from "uploadthing/server";
 
 import { ourFileRouter } from "@/app/api/uploadthing/core";
 import { auth } from "@/auth";
+import { Modals } from "@/components/modals";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
-
-const Modals = dynamic(
-  () => import("@/components/modals").then((m) => m.Modals),
-  { ssr: false },
-);
 import { SubscriptionAlert } from "@/features/subscriptions/components/subscription-alert";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +59,9 @@ export default async function RootLayout({
           <Providers>
             <Toaster />
             <Modals />
-            <SubscriptionAlert />
+            <Suspense fallback={null}>
+              <SubscriptionAlert />
+            </Suspense>
             {children}
           </Providers>
         </body>

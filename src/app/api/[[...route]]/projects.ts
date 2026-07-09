@@ -38,11 +38,12 @@ const projectCreateSchema = projectsInsertSchema.pick({
 });
 
 const projectUpdateSchema = projectsInsertSchema
-  .omit({
-    id: true,
-    userId: true,
-    createdAt: true,
-    updatedAt: true,
+  .pick({
+    name: true,
+    json: true,
+    width: true,
+    height: true,
+    thumbnailUrl: true,
   })
   .partial();
 

@@ -61,7 +61,7 @@ To forward Stripe webhook events to your local server during development, follow
    ```
 
 ### Webhook Architecture & Event Handlers
-The webhook router is defined in [`subscriptions.ts`](file:///Users/blagare/Desktop/Next%20JS%20Learning/canva-clone/src/app/api/%5B%5B...route%5D%5D/subscriptions.ts). It processes the following events:
+The webhook router is defined in [`src/app/api/[[...route]]/subscriptions.ts`](src/app/api/[[...route]]/subscriptions.ts). It processes the following events:
 
 1. **`checkout.session.completed`**:
    - Triggered when the user completes their checkout session.

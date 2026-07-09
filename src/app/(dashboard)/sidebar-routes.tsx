@@ -71,7 +71,7 @@ export const SidebarRoutes = () => {
           href={pathname}
           icon={CreditCardIcon}
           label="Billing"
-          onClick={() => billingMutation.mutate()}
+          onClick={onClick}
         />
         <SidebarItem
           href="mailto:iambhushanlagare@gmail.com"
