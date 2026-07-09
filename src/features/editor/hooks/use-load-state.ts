@@ -30,7 +30,7 @@ export const useLoadState = ({
     if (!initialized.current && initialState?.current && canvas) {
       const data = JSON.parse(initialState.current);
 
-      canvas.loadFromJSON(data, () => {
+      canvas.loadFromJSON(data).then(() => {
         // Create initial history snapshot using filtered keys
         const currentState = JSON.stringify(canvas.toObject(JSON_KEYS));
 

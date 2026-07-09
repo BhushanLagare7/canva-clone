@@ -122,7 +122,7 @@ export const ProjectsSection = () => {
                   <TableCell className="flex items-center justify-end">
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
-                        <Button disabled={false} size="icon" variant="ghost">
+                        <Button size="icon" variant="ghost">
                           <MoreHorizontalIcon className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
