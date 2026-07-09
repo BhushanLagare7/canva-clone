@@ -39,6 +39,8 @@ export const useLoadState = ({
 
         // Adjust zoom level to fit the loaded content
         autoZoom();
+      }).catch((error) => {
+        console.error("Failed to load canvas state:", error);
       });
 
       initialized.current = true;

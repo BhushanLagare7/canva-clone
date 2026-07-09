@@ -44,7 +44,11 @@ export const TemplateSidebar = ({
     const ok = await confirm();
 
     if (ok) {
-      editor?.loadJson(template.json);
+      try {
+        editor?.loadJson(template.json);
+      } catch (error) {
+        console.error("Failed to load template:", error);
+      }
     }
   };
 
@@ -87,12 +91,14 @@ export const TemplateSidebar = ({
                     }}
                     onClick={() => onClick(template)}
                   >
-                    <Image
-                      alt={template.name ?? "Template"}
-                      className="object-cover"
-                      fill
-                      src={template.thumbnailUrl ?? ""}
-                    />
+                    {template.thumbnailUrl ? (
+                      <Image
+                        alt={template.name ?? "Template"}
+                        className="object-cover"
+                        fill
+                        src={template.thumbnailUrl}
+                      />
+                    ) : null}
                     {template.isPro && (
                       <div className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-black/50">
                         <CrownIcon className="size-4 fill-yellow-500 text-yellow-500" />

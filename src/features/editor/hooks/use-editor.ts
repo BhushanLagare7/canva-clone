@@ -176,11 +176,17 @@ const buildEditor = ({
   };
 
   const loadJson = (json: string) => {
-    const data = JSON.parse(json);
+    try {
+      const data = JSON.parse(json);
 
-    canvas.loadFromJSON(data).then(() => {
-      autoZoom();
-    });
+      canvas.loadFromJSON(data).then(() => {
+        autoZoom();
+      }).catch((error) => {
+        console.error("Failed to load JSON onto canvas:", error);
+      });
+    } catch (error) {
+      console.error("Failed to parse template JSON:", error);
+    }
   };
 
   const getWorkspace = () => {

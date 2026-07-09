@@ -38,12 +38,19 @@ export const TemplateCard = ({
         className="relative h-full w-full overflow-hidden rounded-xl border"
         style={{ aspectRatio: `${width}/${height}` }}
       >
-        <Image
-          alt={title}
-          className="transform object-cover transition group-hover:scale-105"
-          fill
-          src={imageSrc}
-        />
+        {imageSrc ? (
+          <Image
+            alt={title}
+            className="transform object-cover transition group-hover:scale-105"
+            fill
+            sizes="(max-width: 768px) 50vw, 25vw"
+            src={imageSrc}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-muted">
+            <p className="text-muted-foreground text-xs">No preview</p>
+          </div>
+        )}
         {isPro && (
           <div className="absolute top-2 right-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50">
             <CrownIcon className="size-5 fill-yellow-500 text-yellow-500" />
