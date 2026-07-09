@@ -30,7 +30,7 @@ export const useLoadState = ({
     if (!initialized.current && initialState?.current && canvas) {
       const data = JSON.parse(initialState.current);
 
-      canvas.loadFromJSON(data, () => {
+      canvas.loadFromJSON(data).then(() => {
         // Create initial history snapshot using filtered keys
         const currentState = JSON.stringify(canvas.toObject(JSON_KEYS));
 
@@ -39,6 +39,8 @@ export const useLoadState = ({
 
         // Adjust zoom level to fit the loaded content
         autoZoom();
+      }).catch((error) => {
+        console.error("Failed to load canvas state:", error);
       });
 
       initialized.current = true;
