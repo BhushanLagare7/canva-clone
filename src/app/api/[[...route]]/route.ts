@@ -7,6 +7,7 @@ import authConfig from "@/auth.config";
 import ai from "./ai";
 import images from "./images";
 import projects from "./projects";
+import subscriptions from "./subscriptions";
 import users from "./users";
 
 // Revert to "edge" if planning on running on the edge
@@ -27,12 +28,12 @@ const routes = app
   .route("/ai", ai)
   .route("/images", images)
   .route("/projects", projects)
+  .route("/subscriptions", subscriptions)
   .route("/users", users);
 
 export const GET = handle(routes);
 export const POST = handle(routes);
 export const PATCH = handle(routes);
 export const DELETE = handle(routes);
-
 
 export type AppType = typeof routes;

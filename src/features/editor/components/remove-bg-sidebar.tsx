@@ -10,6 +10,7 @@ import { useRemoveBg } from "@/features/ai/api/use-remove-bg";
 import { ToolSidebarClose } from "@/features/editor/components/tool-sidebar-close";
 import { ToolSidebarHeader } from "@/features/editor/components/tool-sidebar-header";
 import { ActiveTool, Editor } from "@/features/editor/types";
+import { usePaywall } from "@/features/subscriptions/hooks/use-paywall";
 import { cn } from "@/lib/utils";
 
 interface RemoveBgSidebarProps {
@@ -24,6 +25,8 @@ export const RemoveBgSidebar = ({
   onChangeActiveTool,
 }: RemoveBgSidebarProps) => {
   const [error, setError] = useState<string | null>(null);
+
+  const { shouldBlock, triggerPaywall } = usePaywall();
   const mutation = useRemoveBg();
 
   const selectedObject = editor?.selectedObjects[0];
@@ -38,7 +41,12 @@ export const RemoveBgSidebar = ({
 
   const onClick = () => {
     setError(null);
-    // TODO: Block using paywall
+
+    if (shouldBlock) {
+      triggerPaywall();
+
+      return;
+    }
 
     if (!imageSrc) return;
 

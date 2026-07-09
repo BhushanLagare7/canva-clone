@@ -11,30 +11,50 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useBilling } from "@/features/subscriptions/api/use-billing";
+import { useCheckout } from "@/features/subscriptions/api/use-checkout";
+import { usePaywall } from "@/features/subscriptions/hooks/use-paywall";
 
 import { SidebarItem } from "./sidebar-item";
 
 export const SidebarRoutes = () => {
   const pathname = usePathname();
+  const { shouldBlock, isLoading, triggerPaywall } = usePaywall();
+  const billingMutation = useBilling();
+
+  const checkoutMutation = useCheckout();
+
+  const onClick = () => {
+    if (shouldBlock) {
+      triggerPaywall();
+      return;
+    }
+
+    billingMutation.mutate();
+  };
 
   return (
     <div className="flex flex-1 flex-col gap-y-4">
-      <>
-        <div className="px-3">
-          <Button
-            className="w-full rounded-xl border-none transition hover:bg-white hover:opacity-75"
-            size="lg"
-            variant="outline"
-          >
-            <CrownIcon className="mr-2 size-4 fill-yellow-500 text-yellow-500" />
-            Upgrade to Image AI Pro
-          </Button>
-        </div>
-        <div className="px-3">
-          <Separator />
-        </div>
-      </>
+      {shouldBlock && !isLoading && (
+        <>
+          <div className="px-3">
+            <Button
+              className="w-full rounded-xl border-none transition hover:bg-white hover:opacity-75"
+              disabled={checkoutMutation.isPending}
+              size="lg"
+              variant="outline"
+              onClick={() => checkoutMutation.mutate()}
+            >
+              <CrownIcon className="mr-2 size-4 fill-yellow-500 text-yellow-500" />
+              Upgrade to Image AI Pro
+            </Button>
+          </div>
 
+          <div className="px-3">
+            <Separator />
+          </div>
+        </>
+      )}
       <ul className="flex flex-col gap-y-1 px-3">
         <SidebarItem
           href="/"
@@ -51,7 +71,7 @@ export const SidebarRoutes = () => {
           href={pathname}
           icon={CreditCardIcon}
           label="Billing"
-          onClick={() => {}}
+          onClick={onClick}
         />
         <SidebarItem
           href="mailto:iambhushanlagare@gmail.com"

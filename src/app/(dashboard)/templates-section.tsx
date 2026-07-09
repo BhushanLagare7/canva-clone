@@ -9,11 +9,13 @@ import {
   ResponseType,
   useGetTemplates,
 } from "@/features/projects/api/use-get-templates";
+import { usePaywall } from "@/features/subscriptions/hooks/use-paywall";
 
 import { TemplateCard } from "./template-card";
 
 export const TemplatesSection = () => {
   const router = useRouter();
+  const { shouldBlock, triggerPaywall } = usePaywall();
   const mutation = useCreateProject();
 
   const { data, isLoading, isError } = useGetTemplates({
@@ -22,7 +24,11 @@ export const TemplatesSection = () => {
   });
 
   const onClick = (template: ResponseType["data"][0]) => {
-    // TODO: Check if template is pro and should block
+    if (template.isPro && shouldBlock) {
+      triggerPaywall();
+
+      return;
+    }
 
     mutation.mutate(
       {

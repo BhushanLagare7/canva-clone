@@ -179,11 +179,14 @@ const buildEditor = ({
     try {
       const data = JSON.parse(json);
 
-      canvas.loadFromJSON(data).then(() => {
-        autoZoom();
-      }).catch((error) => {
-        console.error("Failed to load JSON onto canvas:", error);
-      });
+      canvas
+        .loadFromJSON(data)
+        .then(() => {
+          autoZoom();
+        })
+        .catch((error) => {
+          console.error("Failed to load JSON onto canvas:", error);
+        });
     } catch (error) {
       console.error("Failed to parse template JSON:", error);
     }
