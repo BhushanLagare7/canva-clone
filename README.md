@@ -29,8 +29,48 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Stripe Integration & Webhooks
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The project features a Stripe recurring subscription payment flow integrated via a Hono API router on Next.js.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Environment Variables
+Configure the following Stripe variables in your `.env.local` file:
+```env
+STRIPE_SECRET_KEY=sk_test_...       # Stripe Secret Key
+STRIPE_PRICE_ID=price_...          # Price ID for your recurring plan
+STRIPE_WEBHOOK_SECRET=whsec_...    # Webhook signature verification secret
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### Webhook Endpoints
+- **Local Webhook URL:** `http://localhost:3000/api/subscriptions/webhook`
+- **Production Webhook URL:** `https://<your-domain>/api/subscriptions/webhook`
+
+### Local Development Setup & Testing
+To forward Stripe webhook events to your local server during development, follow these steps:
+
+1. **Install Stripe CLI** (if not already installed).
+2. **Start the local forwarder** targeting the correct Hono routing path:
+   ```bash
+   stripe listen --forward-to localhost:3000/api/subscriptions/webhook
+   ```
+3. **Copy the webhook secret** printed in the Stripe CLI console (it starts with `whsec_`) and set it as `STRIPE_WEBHOOK_SECRET` in your `.env.local` file.
+4. Restart your development server:
+   ```bash
+   bun dev
+   ```
+
+### Webhook Architecture & Event Handlers
+The webhook router is defined in [`subscriptions.ts`](file:///Users/blagare/Desktop/Next%20JS%20Learning/canva-clone/src/app/api/%5B%5B...route%5D%5D/subscriptions.ts). It processes the following events:
+
+1. **`checkout.session.completed`**:
+   - Triggered when the user completes their checkout session.
+   - Extracts the `userId` from the session's metadata and retrieves the Stripe subscription object.
+   - Inserts a new subscription record in the database linking the user to their `subscriptionId`.
+
+2. **`invoice.payment_succeeded`**:
+   - Triggered upon successful subscription renewal payments.
+   - Retrieves the subscription ID via the parent details mapping (`invoice.parent.subscription_details.subscription`).
+   - Retrieves the renewed subscription object from Stripe to find the updated billing cycle period (`subscription.items.data[0].current_period_end`).
+   - Updates the subscription status and expiration date (`currentPeriodEnd`) in the database where the `subscriptionId` matches.
+

@@ -1,6 +1,7 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 
@@ -11,6 +12,12 @@ import { ourFileRouter } from "@/app/api/uploadthing/core";
 import { auth } from "@/auth";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
+
+const Modals = dynamic(
+  () => import("@/components/modals").then((m) => m.Modals),
+  { ssr: false },
+);
+import { SubscriptionAlert } from "@/features/subscriptions/components/subscription-alert";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -55,6 +62,8 @@ export default async function RootLayout({
           <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
           <Providers>
             <Toaster />
+            <Modals />
+            <SubscriptionAlert />
             {children}
           </Providers>
         </body>

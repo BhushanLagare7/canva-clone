@@ -7,6 +7,7 @@ import { useGenerateImage } from "@/features/ai/api/use-generate-image";
 import { ToolSidebarClose } from "@/features/editor/components/tool-sidebar-close";
 import { ToolSidebarHeader } from "@/features/editor/components/tool-sidebar-header";
 import { ActiveTool, Editor } from "@/features/editor/types";
+import { usePaywall } from "@/features/subscriptions/hooks/use-paywall";
 import { cn } from "@/lib/utils";
 
 interface AiSidebarProps {
@@ -21,15 +22,20 @@ export const AiSidebar = ({
   onChangeActiveTool,
 }: AiSidebarProps) => {
   const mutation = useGenerateImage();
+  const { shouldBlock, triggerPaywall } = usePaywall();
 
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
 
-    // TODO: Block with paywall
+    if (shouldBlock) {
+      triggerPaywall();
+
+      return;
+    }
 
     mutation.mutate(
       { prompt: value },
@@ -70,7 +76,7 @@ export const AiSidebar = ({
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-destructive text-xs">{error}</p>}
           <Button
             className="w-full"
             disabled={mutation.isPending}

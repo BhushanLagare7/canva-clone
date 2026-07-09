@@ -10,6 +10,7 @@ import {
   ResponseType,
   useGetTemplates,
 } from "@/features/projects/api/use-get-templates";
+import { usePaywall } from "@/features/subscriptions/hooks/use-paywall";
 import { useConfirm } from "@/hooks/use-confirm";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ export const TemplateSidebar = ({
   activeTool,
   onChangeActiveTool,
 }: TemplateSidebarProps) => {
+  const { shouldBlock, triggerPaywall } = usePaywall();
   const [ConfirmDialog, confirm] = useConfirm(
     "Are you sure?",
     "You are about to replace the current project with this template.",
@@ -39,7 +41,11 @@ export const TemplateSidebar = ({
   };
 
   const onClick = async (template: ResponseType["data"][0]) => {
-    // TODO: Check if template is pro and should block
+    if (template.isPro && shouldBlock) {
+      triggerPaywall();
+
+      return;
+    }
 
     const ok = await confirm();
 
