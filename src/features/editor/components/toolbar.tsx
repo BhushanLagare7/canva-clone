@@ -4,7 +4,7 @@ import { FaBold, FaItalic, FaStrikethrough, FaUnderline } from "react-icons/fa";
 import { RxTransparencyGrid } from "react-icons/rx";
 import { TbColorFilter } from "react-icons/tb";
 
-import * as fabric from "fabric";
+import type * as fabric from "fabric";
 import {
   AlignCenterIcon,
   AlignLeftIcon,
@@ -30,37 +30,98 @@ import { isTextType } from "@/features/editor/utils";
 import { cn } from "@/lib/utils";
 
 interface ToolbarProps {
+  /** The tool currently active in the editor sidebar (drives active-state styling). */
   activeTool: ActiveTool;
+  /** The editor instance backing the canvas; `undefined` while it is initializing. */
   editor: Editor | undefined;
+  /** Callback used to switch the active sidebar tool. */
   onChangeActiveTool: (tool: ActiveTool) => void;
 }
 
+/** Shape of the toolbar's locally-mirrored editor properties. */
+type ToolbarProperties = {
+  fillColor: string | undefined;
+  fontFamily: string | undefined;
+  fontLinethrough: boolean;
+  fontSize: number;
+  fontStyle: string;
+  fontUnderline: boolean;
+  fontWeight: number;
+  strokeColor: string | undefined;
+  textAlign: fabric.TextProps["textAlign"] | "left";
+};
+
+/**
+ * Reads the currently active object's styling properties off the editor,
+ * falling back to sensible defaults when there is no editor/selection yet.
+ * Used both for the toolbar's initial state and whenever the selection changes.
+ */
+const getEditorProperties = (
+  editor: Editor | undefined,
+): ToolbarProperties => ({
+  fillColor: editor?.getActiveFillColor(),
+  fontFamily: editor?.getActiveFontFamily(),
+  fontLinethrough: editor?.getActiveFontLinethrough() ?? false,
+  fontSize: editor?.getActiveFontSize() ?? FONT_SIZE,
+  fontStyle: editor?.getActiveFontStyle() ?? "normal",
+  fontUnderline: editor?.getActiveFontUnderline() ?? false,
+  fontWeight: editor?.getActiveFontWeight() ?? FONT_WEIGHT,
+  strokeColor: editor?.getActiveStrokeColor(),
+  textAlign: editor?.getActiveTextAlign() ?? "left",
+});
+
+interface ToolbarIconButtonProps {
+  /** Tooltip text and accessible label for the button. */
+  label: string;
+  /** Icon component rendered inside the button. */
+  icon: React.ComponentType<{ className?: string }>;
+  /** Whether the button should render in its "active" (highlighted) state. */
+  isActive?: boolean;
+  /** Click handler for the button. */
+  onClick: () => void;
+}
+
+/**
+ * A single icon button in the toolbar, wrapped in a tooltip (`Hint`) and
+ * centered in its own slot. Extracted to avoid repeating the identical
+ * wrapper markup for every toolbar action.
+ */
+const ToolbarIconButton = ({
+  label,
+  icon: Icon,
+  isActive,
+  onClick,
+}: ToolbarIconButtonProps) => (
+  <div className="flex h-full items-center justify-center">
+    <Hint label={label} side="bottom" sideOffset={5}>
+      <Button
+        className={cn(isActive && "bg-gray-100")}
+        size="icon"
+        variant="ghost"
+        onClick={onClick}
+      >
+        <Icon className="size-4" />
+      </Button>
+    </Hint>
+  </div>
+);
+
+/**
+ * Contextual formatting toolbar shown above the canvas. Its contents adapt
+ * to the type of the currently selected object (text, image, shape, etc.)
+ * and mirror the selected object's styling into local state so inputs like
+ * font size can be edited responsively.
+ */
 export const Toolbar = ({
   activeTool,
   editor,
   onChangeActiveTool,
 }: ToolbarProps) => {
-  const initialFillColor = editor?.getActiveFillColor();
-  const initialFontFamily = editor?.getActiveFontFamily();
-  const initialFontLinethrough = editor?.getActiveFontLinethrough() ?? false;
-  const initialFontSize = editor?.getActiveFontSize() ?? FONT_SIZE;
-  const initialFontStyle = editor?.getActiveFontStyle() ?? "normal";
-  const initialFontUnderline = editor?.getActiveFontUnderline() ?? false;
-  const initialFontWeight = editor?.getActiveFontWeight() ?? FONT_WEIGHT;
-  const initialStrokeColor = editor?.getActiveStrokeColor();
-  const initialTextAlign = editor?.getActiveTextAlign() ?? "left";
-
-  const [properties, setProperties] = useState({
-    fillColor: initialFillColor,
-    fontFamily: initialFontFamily,
-    fontLinethrough: initialFontLinethrough,
-    fontSize: initialFontSize,
-    fontStyle: initialFontStyle,
-    fontUnderline: initialFontUnderline,
-    fontWeight: initialFontWeight,
-    strokeColor: initialStrokeColor,
-    textAlign: initialTextAlign,
-  });
+  // Lazy initializer: only runs once on mount, rather than being
+  // recomputed (and discarded) on every re-render.
+  const [properties, setProperties] = useState<ToolbarProperties>(() =>
+    getEditorProperties(editor),
+  );
 
   const selectedObject = editor?.selectedObjects[0];
   const selectedObjectType = selectedObject?.type;
@@ -74,17 +135,7 @@ export const Toolbar = ({
   const [prevSelectedObject, setPrevSelectedObject] = useState(selectedObject);
   if (selectedObject !== prevSelectedObject) {
     setPrevSelectedObject(selectedObject);
-    setProperties({
-      fillColor: editor?.getActiveFillColor(),
-      fontFamily: editor?.getActiveFontFamily(),
-      fontLinethrough: editor?.getActiveFontLinethrough() ?? false,
-      fontSize: editor?.getActiveFontSize() ?? FONT_SIZE,
-      fontStyle: editor?.getActiveFontStyle() ?? "normal",
-      fontUnderline: editor?.getActiveFontUnderline() ?? false,
-      fontWeight: editor?.getActiveFontWeight() ?? FONT_WEIGHT,
-      strokeColor: editor?.getActiveStrokeColor(),
-      textAlign: editor?.getActiveTextAlign() ?? "left",
-    });
+    setProperties(getEditorProperties(editor));
   }
 
   /**
@@ -93,9 +144,9 @@ export const Toolbar = ({
    * the repeated guard + editor-call + setProperties pattern shared by the
    * toggle/align/size handlers below.
    */
-  const applyTextChange = <K extends keyof typeof properties>(
+  const applyTextChange = <K extends keyof ToolbarProperties>(
     key: K,
-    value: (typeof properties)[K],
+    value: ToolbarProperties[K],
     apply: () => void,
   ) => {
     if (!selectedObject || !isText) return;
@@ -140,6 +191,11 @@ export const Toolbar = ({
     applyTextChange("fontSize", size, () => editor?.changeFontSize(size));
   };
 
+  const onDuplicate = async () => {
+    await editor?.onCopy();
+    await editor?.onPaste();
+  };
+
   if (editor?.selectedObjects.length === 0) {
     return (
       <div className="z-49 flex h-14 w-full shrink-0 items-center gap-x-2 overflow-x-auto border-b bg-white p-2" />
@@ -159,14 +215,13 @@ export const Toolbar = ({
             >
               <div
                 className="size-4 rounded-sm border"
-                style={{
-                  backgroundColor: properties.fillColor,
-                }}
+                style={{ backgroundColor: properties.fillColor }}
               />
             </Button>
           </Hint>
         </div>
       )}
+
       {!isText && (
         <div className="flex h-full items-center justify-center">
           <Hint label="Stroke color" side="bottom" sideOffset={5}>
@@ -184,20 +239,16 @@ export const Toolbar = ({
           </Hint>
         </div>
       )}
+
       {!isText && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Stroke width" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(activeTool === "stroke-width" && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={() => onChangeActiveTool("stroke-width")}
-            >
-              <BsBorderWidth className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={BsBorderWidth}
+          isActive={activeTool === "stroke-width"}
+          label="Stroke width"
+          onClick={() => onChangeActiveTool("stroke-width")}
+        />
       )}
+
       {isText && (
         <div className="flex h-full items-center justify-center">
           <Hint label="Font" side="bottom" sideOffset={5}>
@@ -216,104 +267,70 @@ export const Toolbar = ({
           </Hint>
         </div>
       )}
+
       {isText && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Bold" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(properties.fontWeight > 500 && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={toggleBold}
-            >
-              <FaBold className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={FaBold}
+          isActive={properties.fontWeight > 500}
+          label="Bold"
+          onClick={toggleBold}
+        />
       )}
+
       {isText && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Italic" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(properties.fontStyle === "italic" && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={toggleItalic}
-            >
-              <FaItalic className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={FaItalic}
+          isActive={properties.fontStyle === "italic"}
+          label="Italic"
+          onClick={toggleItalic}
+        />
       )}
+
       {isText && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Underline" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(properties.fontUnderline && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={toggleUnderline}
-            >
-              <FaUnderline className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={FaUnderline}
+          isActive={properties.fontUnderline}
+          label="Underline"
+          onClick={toggleUnderline}
+        />
       )}
+
       {isText && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Strike" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(properties.fontLinethrough && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={toggleLinethrough}
-            >
-              <FaStrikethrough className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={FaStrikethrough}
+          isActive={properties.fontLinethrough}
+          label="Strike"
+          onClick={toggleLinethrough}
+        />
       )}
+
       {isText && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Align left" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(properties.textAlign === "left" && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={() => onChangeTextAlign("left")}
-            >
-              <AlignLeftIcon className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={AlignLeftIcon}
+          isActive={properties.textAlign === "left"}
+          label="Align left"
+          onClick={() => onChangeTextAlign("left")}
+        />
       )}
+
       {isText && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Align center" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(properties.textAlign === "center" && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={() => onChangeTextAlign("center")}
-            >
-              <AlignCenterIcon className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={AlignCenterIcon}
+          isActive={properties.textAlign === "center"}
+          label="Align center"
+          onClick={() => onChangeTextAlign("center")}
+        />
       )}
+
       {isText && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Align right" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(properties.textAlign === "right" && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={() => onChangeTextAlign("right")}
-            >
-              <AlignRightIcon className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={AlignRightIcon}
+          isActive={properties.textAlign === "right"}
+          label="Align right"
+          onClick={() => onChangeTextAlign("right")}
+        />
       )}
+
       {isText && (
         <div className="flex h-full items-center justify-center">
           <FontSizeInput
@@ -322,89 +339,55 @@ export const Toolbar = ({
           />
         </div>
       )}
+
       {isImage && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Filters" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(activeTool === "filter" && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={() => onChangeActiveTool("filter")}
-            >
-              <TbColorFilter className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={TbColorFilter}
+          isActive={activeTool === "filter"}
+          label="Filters"
+          onClick={() => onChangeActiveTool("filter")}
+        />
       )}
+
       {isImage && (
-        <div className="flex h-full items-center justify-center">
-          <Hint label="Remove background" side="bottom" sideOffset={5}>
-            <Button
-              className={cn(activeTool === "remove-bg" && "bg-gray-100")}
-              size="icon"
-              variant="ghost"
-              onClick={() => onChangeActiveTool("remove-bg")}
-            >
-              <SquareSplitHorizontalIcon className="size-4" />
-            </Button>
-          </Hint>
-        </div>
+        <ToolbarIconButton
+          icon={SquareSplitHorizontalIcon}
+          isActive={activeTool === "remove-bg"}
+          label="Remove background"
+          onClick={() => onChangeActiveTool("remove-bg")}
+        />
       )}
-      <div className="flex h-full items-center justify-center">
-        <Hint label="Bring forward" side="bottom" sideOffset={5}>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => editor?.bringForward()}
-          >
-            <ArrowUpIcon className="size-4" />
-          </Button>
-        </Hint>
-      </div>
-      <div className="flex h-full items-center justify-center">
-        <Hint label="Send backwards" side="bottom" sideOffset={5}>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => editor?.sendBackwards()}
-          >
-            <ArrowDownIcon className="size-4" />
-          </Button>
-        </Hint>
-      </div>
-      <div className="flex h-full items-center justify-center">
-        <Hint label="Opacity" side="bottom" sideOffset={5}>
-          <Button
-            className={cn(activeTool === "opacity" && "bg-gray-100")}
-            size="icon"
-            variant="ghost"
-            onClick={() => onChangeActiveTool("opacity")}
-          >
-            <RxTransparencyGrid className="size-4" />
-          </Button>
-        </Hint>
-      </div>
-      <div className="flex h-full items-center justify-center">
-        <Hint label="Duplicate" side="bottom" sideOffset={5}>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={async () => {
-              await editor?.onCopy();
-              await editor?.onPaste();
-            }}
-          >
-            <CopyIcon className="size-4" />
-          </Button>
-        </Hint>
-      </div>
-      <div className="flex h-full items-center justify-center">
-        <Hint label="Delete" side="bottom" sideOffset={5}>
-          <Button size="icon" variant="ghost" onClick={() => editor?.delete()}>
-            <TrashIcon className="size-4" />
-          </Button>
-        </Hint>
-      </div>
+
+      <ToolbarIconButton
+        icon={ArrowUpIcon}
+        label="Bring forward"
+        onClick={() => editor?.bringForward()}
+      />
+
+      <ToolbarIconButton
+        icon={ArrowDownIcon}
+        label="Send backwards"
+        onClick={() => editor?.sendBackwards()}
+      />
+
+      <ToolbarIconButton
+        icon={RxTransparencyGrid}
+        isActive={activeTool === "opacity"}
+        label="Opacity"
+        onClick={() => onChangeActiveTool("opacity")}
+      />
+
+      <ToolbarIconButton
+        icon={CopyIcon}
+        label="Duplicate"
+        onClick={onDuplicate}
+      />
+
+      <ToolbarIconButton
+        icon={TrashIcon}
+        label="Delete"
+        onClick={() => editor?.delete()}
+      />
     </div>
   );
 };

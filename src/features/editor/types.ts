@@ -253,7 +253,7 @@ export interface Editor {
   getActiveStrokeWidth: () => number;
   getActiveTextAlign: () => fabric.TextProps["textAlign"];
   getWorkspace: () => fabric.FabricObject | undefined;
-  loadJson: (json: string) => void;
+  loadJson: (json: string) => Promise<void>;
   onCopy: () => Promise<void>;
   onPaste: () => Promise<void>;
   onRedo: () => void;

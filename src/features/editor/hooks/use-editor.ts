@@ -1,3 +1,13 @@
+/**
+ * @file Core editor engine for the Fabric.js-based design editor.
+ *
+ * Exposes `useEditor`, a hook that wires together canvas state,
+ * history, clipboard, hotkeys, auto-resize and auto-zoom behavior,
+ * and produces a stable `Editor` API (via `buildEditor`) that UI
+ * components use to manipulate the canvas (add shapes/text/images,
+ * change styling, export, undo/redo, zoom, etc.).
+ */
+
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import * as fabric from "fabric";
@@ -35,6 +45,14 @@ import {
   transformText,
 } from "@/features/editor/utils";
 
+/**
+ * Builds the `Editor` API surface consumed by the UI.
+ *
+ * This is a pure factory: given the current canvas + related state
+ * (colors, widths, selection, history callbacks, etc.), it returns a
+ * fresh object exposing every editor action. It is re-created whenever
+ * its dependencies change (see the `useMemo` in `useEditor`).
+ */
 const buildEditor = ({
   autoZoom,
   canRedo,
@@ -61,39 +79,57 @@ const buildEditor = ({
   strokeWidth,
   undo,
 }: BuildEditorProps): Editor => {
-  const generateSaveOptions = () => {
-    const workspace = getWorkspace() as fabric.Rect;
-    const { left, top, width, height } = workspace.getBoundingRect();
+  /**
+   * Static options shared by the raster export formats (PNG/JPG).
+   * Positional/size fields (`left`, `top`, `width`, `height`) are
+   * intentionally omitted here since callers always derive and
+   * override them from the un-zoomed workspace bounds at export time.
+   */
+  const generateSaveOptions = () => ({
+    name: "Image",
+    format: "png" as const,
+    quality: 1,
+    multiplier: 1,
+  });
 
-    return {
-      name: "Image",
-      format: "png" as const,
-      quality: 1,
-      width,
-      height,
-      left,
-      top,
-      multiplier: 1,
-    };
-  };
-
-  const savePng = () => {
-    const options = generateSaveOptions();
-
-    // Temporarily remove clipPath — it was configured for the zoomed
-    // editor viewport and distorts the export crop coordinates.
+  /**
+   * Runs `callback` with the canvas temporarily reset to an un-zoomed,
+   * clip-path-free viewport so exports use the workspace's true pixel
+   * coordinates, then restores the original clipPath and re-applies
+   * `autoZoom()` afterwards — regardless of success or failure.
+   *
+   * Also handles the left/top vs. center-origin quirk: `getBoundingRect()`
+   * is used (rather than `workspace.left/top`) because the workspace has
+   * `originX/Y: "center"`, while the export APIs expect top-left coordinates.
+   */
+  const withExportViewport = <T>(
+    callback: (bounds: {
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    }) => T,
+  ): T => {
     const originalClipPath = canvas.clipPath;
     canvas.clipPath = undefined;
-
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    // Use getBoundingRect() to get the actual top-left corner.
-    // workspace.left/top are the CENTER point (originX/Y: "center"),
-    // but toDataURL expects top-left corner coordinates.
+
     const workspace = getWorkspace() as fabric.Rect;
     const { left, top, width, height } = workspace.getBoundingRect();
+
     try {
+      return callback({ left, top, width, height });
+    } finally {
+      canvas.clipPath = originalClipPath;
+      autoZoom();
+    }
+  };
+
+  /** Exports the current workspace as a PNG and triggers a download. */
+  const savePng = () => {
+    withExportViewport(({ left, top, width, height }) => {
       const dataUrl = canvas.toDataURL({
-        ...options,
+        ...generateSaveOptions(),
         left,
         top,
         width,
@@ -101,30 +137,17 @@ const buildEditor = ({
       });
 
       downloadFile(dataUrl, "png", "export");
-    } finally {
-      canvas.clipPath = originalClipPath;
-      autoZoom();
-    }
+    });
   };
 
+  /**
+   * Exports the current workspace as a real SVG document (via Fabric's
+   * native `toSVG()`), rather than a raster dataURL mislabelled as `.svg`.
+   */
   const saveSvg = () => {
-    // Use fabric's native toSVG() to produce a real SVG document
-    // instead of a raster dataURL mislabelled as ".svg".
-    const originalClipPath = canvas.clipPath;
-    canvas.clipPath = undefined;
-
-    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    const workspace = getWorkspace() as fabric.Rect;
-    const { left, top, width, height } = workspace.getBoundingRect();
-
-    try {
+    withExportViewport(({ left, top, width, height }) => {
       const svgString = canvas.toSVG({
-        viewBox: {
-          x: left,
-          y: top,
-          width,
-          height,
-        },
+        viewBox: { x: left, y: top, width, height },
         width: `${width}`,
         height: `${height}`,
       });
@@ -133,24 +156,14 @@ const buildEditor = ({
       const url = URL.createObjectURL(blob);
       downloadFile(url, "svg", "export");
       URL.revokeObjectURL(url);
-    } finally {
-      canvas.clipPath = originalClipPath;
-      autoZoom();
-    }
+    });
   };
 
+  /** Exports the current workspace as a JPG and triggers a download. */
   const saveJpg = () => {
-    const options = generateSaveOptions();
-
-    const originalClipPath = canvas.clipPath;
-    canvas.clipPath = undefined;
-
-    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    const workspace = getWorkspace() as fabric.Rect;
-    const { left, top, width, height } = workspace.getBoundingRect();
-    try {
+    withExportViewport(({ left, top, width, height }) => {
       const dataUrl = canvas.toDataURL({
-        ...options,
+        ...generateSaveOptions(),
         format: "jpeg",
         left,
         top,
@@ -159,12 +172,10 @@ const buildEditor = ({
       });
 
       downloadFile(dataUrl, "jpg", "export");
-    } finally {
-      canvas.clipPath = originalClipPath;
-      autoZoom();
-    }
+    });
   };
 
+  /** Serializes the canvas to JSON and triggers a download. */
   const saveJson = async () => {
     const dataUrl = canvas.toObject(JSON_KEYS);
 
@@ -175,23 +186,15 @@ const buildEditor = ({
     downloadFile(fileString, "json", "export");
   };
 
-  const loadJson = (json: string) => {
-    try {
-      const data = JSON.parse(json);
+  /** Parses a JSON string and loads it onto the canvas, then re-fits the zoom. */
+  const loadJson = async (json: string) => {
+    const data = JSON.parse(json);
 
-      canvas
-        .loadFromJSON(data)
-        .then(() => {
-          autoZoom();
-        })
-        .catch((error) => {
-          console.error("Failed to load JSON onto canvas:", error);
-        });
-    } catch (error) {
-      console.error("Failed to parse template JSON:", error);
-    }
+    await canvas.loadFromJSON(data);
+    autoZoom();
   };
 
+  /** Returns the special "clip" rect object representing the design workspace/canvas bounds. */
   const getWorkspace = () => {
     return canvas
       .getObjects()
@@ -201,18 +204,58 @@ const buildEditor = ({
       );
   };
 
+  /** Centers `object` within the workspace, if a workspace exists. */
   const center = (object: FabricObject) => {
     const workspace = getWorkspace();
     if (!workspace) return;
 
-    const center = workspace.getCenterPoint();
-    canvas._centerObject(object, center);
+    const centerPoint = workspace.getCenterPoint();
+    canvas._centerObject(object, centerPoint);
   };
 
+  /** Centers, adds, and selects `object` on the canvas. */
   const addToCanvas = (object: FabricObject) => {
     center(object);
     canvas.add(object);
     canvas.setActiveObject(object);
+  };
+
+  /**
+   * Reads a property off the first selected object, falling back to the
+   * provided default when nothing is selected or the property is unset.
+   * Backs the various `getActiveXxx` accessors below.
+   */
+  const getActiveProp = <T>(key: string, fallback: T): T => {
+    const selectedObject = selectedObjects[0];
+    if (!selectedObject) return fallback;
+
+    return (selectedObject.get(key) as T) ?? fallback;
+  };
+
+  /** Applies `props` to every currently selected object and re-renders. */
+  const applyToActiveObjects = (props: Record<string, unknown>) => {
+    canvas.getActiveObjects().forEach((object) => {
+      object.set(props);
+    });
+    canvas.renderAll();
+  };
+
+  /** Applies `props` to selected objects that are text-type only, then re-renders. */
+  const applyToActiveTextObjects = (props: Record<string, unknown>) => {
+    canvas.getActiveObjects().forEach((object) => {
+      if (isTextType(object.type)) {
+        object.set(props);
+      }
+    });
+    canvas.renderAll();
+  };
+
+  /** Keeps the workspace rect pinned behind all other objects. */
+  const sendWorkspaceToBack = () => {
+    const workspace = getWorkspace();
+    if (workspace) {
+      canvas.sendObjectToBack(workspace);
+    }
   };
 
   return {
@@ -248,6 +291,7 @@ const buildEditor = ({
 
       addToCanvas(diamond);
     },
+    /** Loads an image from `url`, scales it to fit the workspace, and adds it. */
     addImage: (url: string) => {
       fabric.FabricImage.fromURL(url, { crossOrigin: "anonymous" })
         .then((image) => {
@@ -334,6 +378,7 @@ const buildEditor = ({
       addToCanvas(triangle);
     },
     autoZoom,
+    /** Brings selected objects one step forward, keeping the workspace pinned to the back. */
     bringForward: () => {
       canvas.getActiveObjects().forEach((object) => {
         // Used to be canvas.bringForward(object)
@@ -341,11 +386,7 @@ const buildEditor = ({
       });
 
       canvas.renderAll();
-
-      const workspace = getWorkspace();
-      if (workspace) {
-        canvas.sendObjectToBack(workspace);
-      }
+      sendWorkspaceToBack();
       canvas.renderAll();
     },
     canRedo,
@@ -371,59 +412,26 @@ const buildEditor = ({
     },
     changeFillColor: (color: string) => {
       setFillColor(color);
-      canvas.getActiveObjects().forEach((object) => {
-        object.set({ fill: color });
-      });
-      canvas.renderAll();
+      applyToActiveObjects({ fill: color });
     },
     changeFontFamily: (fontFamily: string) => {
       setFontFamily(fontFamily);
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ fontFamily });
-        }
-      });
-      canvas.renderAll();
+      applyToActiveTextObjects({ fontFamily });
     },
     changeFontLinethrough: (value: boolean) => {
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ linethrough: value });
-        }
-      });
-      canvas.renderAll();
+      applyToActiveTextObjects({ linethrough: value });
     },
     changeFontSize: (size: number) => {
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ fontSize: size });
-        }
-      });
-      canvas.renderAll();
+      applyToActiveTextObjects({ fontSize: size });
     },
     changeFontStyle: (style: string) => {
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ fontStyle: style });
-        }
-      });
-      canvas.renderAll();
+      applyToActiveTextObjects({ fontStyle: style });
     },
     changeFontUnderline: (value: boolean) => {
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ underline: value });
-        }
-      });
-      canvas.renderAll();
+      applyToActiveTextObjects({ underline: value });
     },
     changeFontWeight: (weight: number) => {
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ fontWeight: weight });
-        }
-      });
-      canvas.renderAll();
+      applyToActiveTextObjects({ fontWeight: weight });
     },
     changeImageFilter: (filter: string) => {
       const objects = canvas.getActiveObjects();
@@ -440,10 +448,7 @@ const buildEditor = ({
       canvas.renderAll();
     },
     changeOpacity: (opacity: number) => {
-      canvas.getActiveObjects().forEach((object) => {
-        object.set({ opacity });
-      });
-      canvas.renderAll();
+      applyToActiveObjects({ opacity });
     },
     changeSize: (size: { width: number; height: number }) => {
       const workspace = getWorkspace();
@@ -466,25 +471,14 @@ const buildEditor = ({
     },
     changeStrokeDashArray: (value: number[]) => {
       setStrokeDashArray(value);
-      canvas.getActiveObjects().forEach((object) => {
-        object.set({ strokeDashArray: value });
-      });
-      canvas.renderAll();
+      applyToActiveObjects({ strokeDashArray: value });
     },
     changeStrokeWidth: (width: number) => {
       setStrokeWidth(width);
-      canvas.getActiveObjects().forEach((object) => {
-        object.set({ strokeWidth: width });
-      });
-      canvas.renderAll();
+      applyToActiveObjects({ strokeWidth: width });
     },
     changeTextAlign: (align: fabric.TextProps["textAlign"]) => {
-      canvas.getActiveObjects().forEach((object) => {
-        if (isTextType(object.type)) {
-          object.set({ textAlign: align });
-        }
-      });
-      canvas.renderAll();
+      applyToActiveTextObjects({ textAlign: align });
     },
     delete: () => {
       canvas.getActiveObjects().forEach((object) => {
@@ -508,113 +502,19 @@ const buildEditor = ({
     },
     getActiveDrawColor: () => drawColor,
     getActiveDrawWidth: () => drawWidth,
-    getActiveFillColor: () => {
-      const selectedObject = selectedObjects[0];
-
-      if (!selectedObject) return fillColor;
-
-      const value = selectedObject.get("fill") ?? fillColor;
-
-      // Currently, gradient & pattern values are not supported
-      return value as string;
-    },
-    getActiveFontFamily: () => {
-      const selectedObject = selectedObjects[0];
-      if (!selectedObject) return fontFamily;
-
-      const value = selectedObject.get("fontFamily") ?? fontFamily;
-
-      return value;
-    },
-    getActiveFontLinethrough: () => {
-      const selectedObject = selectedObjects[0];
-      if (!selectedObject) return false;
-
-      const value = selectedObject.get("linethrough") ?? false;
-
-      return value;
-    },
-    getActiveFontSize: () => {
-      const selectedObject = selectedObjects[0];
-      if (!selectedObject) return FONT_SIZE;
-
-      const value = selectedObject.get("fontSize") ?? FONT_SIZE;
-
-      return value;
-    },
-    getActiveFontStyle: () => {
-      const selectedObject = selectedObjects[0];
-      if (!selectedObject) return "normal";
-
-      const value = selectedObject.get("fontStyle") ?? "normal";
-
-      return value;
-    },
-    getActiveFontUnderline: () => {
-      const selectedObject = selectedObjects[0];
-      if (!selectedObject) return false;
-
-      const value = selectedObject.get("underline") ?? false;
-
-      return value;
-    },
-    getActiveFontWeight: () => {
-      const selectedObject = selectedObjects[0];
-      if (!selectedObject) return FONT_WEIGHT;
-
-      const value = selectedObject.get("fontWeight") ?? FONT_WEIGHT;
-
-      return value;
-    },
-    getActiveOpacity: () => {
-      const selectedObject = selectedObjects[0];
-      if (!selectedObject) return 1;
-
-      const value = selectedObject.get("opacity") ?? 1;
-
-      return value;
-    },
-    getActiveStrokeColor: () => {
-      const selectedObject = selectedObjects[0];
-
-      if (!selectedObject) return strokeColor;
-
-      const value = selectedObject.get("stroke") ?? strokeColor;
-
-      return value;
-    },
-    getActiveStrokeDashArray: () => {
-      const selectedObject = selectedObjects[0];
-
-      if (!selectedObject) {
-        return strokeDashArray;
-      }
-
-      const value = selectedObject.get("strokeDashArray") ?? strokeDashArray;
-
-      return value;
-    },
-    getActiveStrokeWidth: () => {
-      const selectedObject = selectedObjects[0];
-
-      if (!selectedObject) {
-        return strokeWidth;
-      }
-
-      const value = selectedObject.get("strokeWidth") ?? strokeWidth;
-
-      return value;
-    },
-    getActiveTextAlign: () => {
-      const selectedObject = selectedObjects[0];
-      if (!selectedObject) {
-        return "left";
-      }
-
-      const value = selectedObject.get("textAlign") ?? "left";
-
-      return value;
-    },
+    getActiveFillColor: () => getActiveProp("fill", fillColor),
+    getActiveFontFamily: () => getActiveProp("fontFamily", fontFamily),
+    getActiveFontLinethrough: () => getActiveProp("linethrough", false),
+    getActiveFontSize: () => getActiveProp("fontSize", FONT_SIZE),
+    getActiveFontStyle: () => getActiveProp("fontStyle", "normal"),
+    getActiveFontUnderline: () => getActiveProp("underline", false),
+    getActiveFontWeight: () => getActiveProp("fontWeight", FONT_WEIGHT),
+    getActiveOpacity: () => getActiveProp("opacity", 1),
+    getActiveStrokeColor: () => getActiveProp("stroke", strokeColor),
+    getActiveStrokeDashArray: () =>
+      getActiveProp("strokeDashArray", strokeDashArray),
+    getActiveStrokeWidth: () => getActiveProp("strokeWidth", strokeWidth),
+    getActiveTextAlign: () => getActiveProp("textAlign", "left"),
     getWorkspace,
     loadJson,
     onCopy: () => copy(),
@@ -626,6 +526,7 @@ const buildEditor = ({
     savePng,
     saveSvg,
     selectedObjects,
+    /** Sends selected objects one step backward, keeping the workspace pinned to the back. */
     sendBackwards: () => {
       canvas.getActiveObjects().forEach((object) => {
         // Used to be canvas.sendBackwards(object);
@@ -633,11 +534,7 @@ const buildEditor = ({
       });
 
       canvas.renderAll();
-
-      const workspace = getWorkspace();
-      if (workspace) {
-        canvas.sendObjectToBack(workspace);
-      }
+      sendWorkspaceToBack();
       canvas.renderAll();
     },
     zoomIn: () => {
@@ -655,6 +552,23 @@ const buildEditor = ({
   };
 };
 
+/**
+ * Primary hook powering the editor.
+ *
+ * Owns canvas/UI state (selected objects, current draw/fill/stroke
+ * settings), wires up history, clipboard, hotkeys, window events,
+ * auto-resize/zoom and initial-state loading, and produces a memoized
+ * `Editor` instance (via `buildEditor`) plus an `init` callback used to
+ * bootstrap the Fabric canvas once the DOM container is available.
+ *
+ * @param props.clearSelectionCallback - Invoked when the selection is cleared.
+ * @param props.defaultHeight - Initial workspace height, in px.
+ * @param props.defaultWidth - Initial workspace width, in px.
+ * @param props.defaultState - Optional serialized canvas state to seed history with.
+ * @param props.saveCallback - Invoked by the history hook whenever a save/checkpoint occurs.
+ * @returns `{ init, editor }` — call `init` once the canvas + container refs are ready;
+ *          `editor` is `undefined` until then.
+ */
 export const useEditor = ({
   clearSelectionCallback,
   defaultHeight,
@@ -725,6 +639,8 @@ export const useEditor = ({
     setHistoryIndex,
   });
 
+  // Rebuilt whenever the canvas or any editor-relevant state changes,
+  // so consumers always call actions bound to the freshest values.
   const editor = useMemo(() => {
     if (canvas) {
       return buildEditor({
@@ -776,6 +692,12 @@ export const useEditor = ({
     undo,
   ]);
 
+  /**
+   * Bootstraps the Fabric canvas: applies default control styling,
+   * creates and centers the "clip" workspace rect (used as the visible
+   * page/canvas bounds and export clip region), sizes the canvas to
+   * its container, and seeds the undo/redo history with the initial state.
+   */
   const init = useCallback(
     ({
       initialCanvas,
