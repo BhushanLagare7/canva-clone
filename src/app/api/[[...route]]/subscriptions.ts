@@ -83,14 +83,18 @@ async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session,
   stripe: Stripe,
 ): Promise<{ error: string; status: 400 } | null> {
-  const subscription = await stripe.subscriptions.retrieve(
-    session.subscription as string,
-  );
-
   // Validate that userId was stored in session metadata during checkout creation
   if (!session?.metadata?.userId) {
     return { error: "Invalid session", status: 400 };
   }
+
+  if (!session.subscription) {
+    return { error: "Invalid session", status: 400 };
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(
+    session.subscription as string,
+  );
 
   const currentPeriodEnd = getCurrentPeriodEnd(subscription);
   const now = new Date();

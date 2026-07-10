@@ -51,7 +51,7 @@ export const TemplateSidebar = ({
 
     if (ok) {
       try {
-        editor?.loadJson(template.json);
+        await editor?.loadJson(template.json);
       } catch (error) {
         console.error("Failed to load template:", error);
       }

@@ -187,21 +187,11 @@ const buildEditor = ({
   };
 
   /** Parses a JSON string and loads it onto the canvas, then re-fits the zoom. */
-  const loadJson = (json: string) => {
-    try {
-      const data = JSON.parse(json);
+  const loadJson = async (json: string) => {
+    const data = JSON.parse(json);
 
-      canvas
-        .loadFromJSON(data)
-        .then(() => {
-          autoZoom();
-        })
-        .catch((error) => {
-          console.error("Failed to load JSON onto canvas:", error);
-        });
-    } catch (error) {
-      console.error("Failed to parse template JSON:", error);
-    }
+    await canvas.loadFromJSON(data);
+    autoZoom();
   };
 
   /** Returns the special "clip" rect object representing the design workspace/canvas bounds. */

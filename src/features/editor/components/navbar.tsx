@@ -112,7 +112,7 @@ export const Navbar = ({
       }
 
       try {
-        editor?.loadJson(fileContent);
+        await editor?.loadJson(fileContent);
       } catch (error) {
         console.error("Failed to parse JSON file", error);
         alert("Failed to parse JSON file");
