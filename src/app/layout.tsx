@@ -13,6 +13,7 @@ import { auth } from "@/auth";
 import { Modals } from "@/components/modals";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
+import { siteConfig } from "@/config/site";
 import { SubscriptionAlert } from "@/features/subscriptions/components/subscription-alert";
 import { cn } from "@/lib/utils";
 
@@ -40,9 +41,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://canva-clone-wine.vercel.app"
-  ),
+  metadataBase: new URL(siteConfig.url),
   title: {
     default: "Stencil - Create Beautiful Designs",
     template: "%s | Stencil",

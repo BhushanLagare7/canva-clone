@@ -25,7 +25,7 @@ This project, named **Stencil**, is a Canva clone, providing an interactive grap
 
 ## Setup Commands
 - **Install dependencies**: `bun install`
-- **Environment variables**: Ensure a `.env.local` file is set up with all required secrets (Database URL, Stripe, Auth secret, HuggingFace token, UploadThing tokens, etc.).
+- **Environment variables**: Ensure a `.env.local` file is set up with all required secrets (Database URL, Stripe, Auth secret, HuggingFace token, UploadThing tokens, etc.). **`NEXT_PUBLIC_APP_URL`** is also strictly required for canonical URL generation and correct robots/sitemap routing.
 - **Generate DB schema changes**: `bun run db:generate`
 - **Apply DB migrations**: `bun run db:migrate`
 
