@@ -11,6 +11,7 @@
 
 import { verifyAuth } from "@hono/auth-js";
 import { eq } from "drizzle-orm";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import Stripe from "stripe";
 
@@ -18,6 +19,163 @@ import { db } from "@/db/drizzle";
 import { subscriptions } from "@/db/schema";
 import { checkIsActive } from "@/features/subscriptions/lib";
 import { getStripe } from "@/lib/stripe";
+
+/**
+ * Shape of a subscription row as stored in the database.
+ * Inferred directly from the Drizzle schema so helper return types stay
+ * accurate if the schema changes.
+ */
+type SubscriptionRecord = typeof subscriptions.$inferSelect;
+
+/**
+ * Extracts the decoded auth token from the Hono request context.
+ * Centralizes access to `c.get("authUser").token` so every route reads it
+ * the same way.
+ *
+ * @param {Context} c - Hono request context populated by the `verifyAuth()` middleware.
+ * @returns {*} The decoded token payload (containing at least `id`, optionally `email`),
+ *              or `undefined` if the request is unauthenticated.
+ */
+function getAuthToken(c: Context) {
+  return c.get("authUser").token;
+}
+
+/**
+ * Retrieves the subscription record belonging to a given user.
+ *
+ * @param {string} userId - The internal user ID to look up.
+ * @returns {Promise<SubscriptionRecord | undefined>} The subscription row, or `undefined` if none exists.
+ */
+async function getSubscriptionByUserId(
+  userId: string,
+): Promise<SubscriptionRecord | undefined> {
+  const [subscription] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId));
+
+  return subscription;
+}
+
+/**
+ * Derives the "current period end" date from a Stripe subscription object.
+ * Stripe reports this value as a Unix timestamp in seconds; JavaScript's
+ * `Date` constructor expects milliseconds, hence the multiplication.
+ *
+ * @param {Stripe.Subscription} subscription - The Stripe subscription to read from.
+ * @returns {Date} The current billing period's end date.
+ */
+function getCurrentPeriodEnd(subscription: Stripe.Subscription): Date {
+  return new Date(subscription.items.data[0].current_period_end * 1000);
+}
+
+/**
+ * Handles the Stripe `checkout.session.completed` webhook event.
+ * Creates a new subscription record in the database, or updates it if a
+ * record with the same `subscriptionId` already exists (upsert).
+ *
+ * @param {Stripe.Checkout.Session} session - The completed checkout session.
+ * @param {Stripe} stripe - Configured Stripe client instance.
+ * @returns {Promise<{ error: string; status: 400 } | null>} An error payload if
+ *          the session is missing required metadata, otherwise `null` on success.
+ */
+async function handleCheckoutSessionCompleted(
+  session: Stripe.Checkout.Session,
+  stripe: Stripe,
+): Promise<{ error: string; status: 400 } | null> {
+  const subscription = await stripe.subscriptions.retrieve(
+    session.subscription as string,
+  );
+
+  // Validate that userId was stored in session metadata during checkout creation
+  if (!session?.metadata?.userId) {
+    return { error: "Invalid session", status: 400 };
+  }
+
+  const currentPeriodEnd = getCurrentPeriodEnd(subscription);
+  const now = new Date();
+
+  /**
+   * Insert new subscription record into database with:
+   * - Subscription status from Stripe (e.g., "active", "trialing")
+   * - User ID from session metadata for user-subscription linking
+   * - Stripe IDs for future API operations (subscriptionId, customerId, priceId)
+   * - Current period end converted from Unix timestamp to JavaScript Date
+   *
+   * On conflict (subscription already exists), update it instead.
+   */
+  await db
+    .insert(subscriptions)
+    .values({
+      status: subscription.status,
+      userId: session.metadata.userId,
+      subscriptionId: subscription.id,
+      customerId: subscription.customer as string,
+      priceId: subscription.items.data[0].price.id,
+      currentPeriodEnd,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.subscriptionId,
+      set: {
+        status: subscription.status,
+        userId: session.metadata.userId,
+        customerId: subscription.customer as string,
+        priceId: subscription.items.data[0].price.id,
+        currentPeriodEnd,
+        updatedAt: now,
+      },
+    });
+
+  return null;
+}
+
+/**
+ * Handles the Stripe `invoice.payment_succeeded` webhook event.
+ * Updates the status and billing period of the associated subscription record.
+ *
+ * @param {Stripe.Invoice} invoice - The invoice for which payment succeeded.
+ * @param {Stripe} stripe - Configured Stripe client instance.
+ * @returns {Promise<{ error: string; status: 400 } | null>} An error payload if
+ *          the subscription ID cannot be determined from the invoice, otherwise
+ *          `null` on success.
+ */
+async function handleInvoicePaymentSucceeded(
+  invoice: Stripe.Invoice,
+  stripe: Stripe,
+): Promise<{ error: string; status: 400 } | null> {
+  const subscriptionId =
+    typeof invoice.parent?.subscription_details?.subscription === "string"
+      ? invoice.parent.subscription_details.subscription
+      : invoice.parent?.subscription_details?.subscription?.id;
+
+  if (!subscriptionId) {
+    return {
+      error: "No subscription ID found on invoice parent",
+      status: 400,
+    };
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  /**
+   * Update existing subscription record with latest billing information:
+   * - Updated status in case it changed (e.g., "past_due" -> "active")
+   * - New period end date for the next billing cycle
+   * - Updated timestamp for audit trail
+   */
+  await db
+    .update(subscriptions)
+    .set({
+      status: subscription.status,
+      currentPeriodEnd: getCurrentPeriodEnd(subscription),
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptions.subscriptionId, subscription.id));
+
+  return null;
+}
 
 /**
  * Hono application instance containing all subscription-related routes.
@@ -44,18 +202,15 @@ const app = new Hono()
    * { data: "https://billing.stripe.com/session/..." }
    */
   .post("/billing", verifyAuth(), async (c) => {
-    const auth = c.get("authUser");
+    const token = getAuthToken(c);
 
     // Verify the authentication token contains a valid user ID
-    if (!auth.token?.id) {
+    if (!token?.id) {
       return c.json({ error: "Unauthorized" }, 401);
     }
 
     // Fetch the user's subscription record from the database
-    const [subscription] = await db
-      .select()
-      .from(subscriptions)
-      .where(eq(subscriptions.userId, auth.token.id));
+    const subscription = await getSubscriptionByUserId(token.id);
 
     // Return 404 if no subscription exists for this user
     if (!subscription) {
@@ -104,18 +259,15 @@ const app = new Hono()
    * }
    */
   .get("/current", verifyAuth(), async (c) => {
-    const auth = c.get("authUser");
+    const token = getAuthToken(c);
 
     // Verify the authentication token contains a valid user ID
-    if (!auth.token?.id) {
+    if (!token?.id) {
       return c.json({ error: "Unauthorized" }, 401);
     }
 
     // Fetch the user's current subscription record from the database
-    const [subscription] = await db
-      .select()
-      .from(subscriptions)
-      .where(eq(subscriptions.userId, auth.token.id));
+    const subscription = await getSubscriptionByUserId(token.id);
 
     /**
      * Determine if the subscription is currently active.
@@ -142,6 +294,7 @@ const app = new Hono()
    *
    * @returns {Object} 200 - { data: string } - Stripe checkout session URL
    * @returns {Object} 401 - { error: "Unauthorized" } - Missing or invalid auth token
+   * @returns {Object} 500 - { error: "Missing Stripe configuration" } - Required env vars not set
    * @returns {Object} 400 - { error: "Failed to create session" } - Stripe session creation failed
    *
    * @example
@@ -149,11 +302,17 @@ const app = new Hono()
    * { data: "https://checkout.stripe.com/pay/cs_..." }
    */
   .post("/checkout", verifyAuth(), async (c) => {
-    const auth = c.get("authUser");
+    const token = getAuthToken(c);
 
     // Verify the authentication token contains a valid user ID
-    if (!auth.token?.id) {
+    if (!token?.id) {
       return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const stripe = getStripe();
+
+    if (!process.env.NEXT_PUBLIC_APP_URL || !process.env.STRIPE_PRICE_ID) {
+      return c.json({ error: "Missing Stripe configuration" }, 500);
     }
 
     /**
@@ -166,18 +325,13 @@ const app = new Hono()
      * - billing_address_collection: Automatically determines if address is needed
      * - metadata: Stores userId for linking subscription to user in webhook handler
      */
-    const stripe = getStripe();
-    if (!process.env.NEXT_PUBLIC_APP_URL || !process.env.STRIPE_PRICE_ID) {
-      return c.json({ error: "Missing Stripe configuration" }, 500);
-    }
-
     const session = await stripe.checkout.sessions.create({
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}?success=1`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}?canceled=1`,
       payment_method_types: ["card", "paypal"],
       mode: "subscription",
       billing_address_collection: "auto",
-      ...(auth.token.email ? { customer_email: auth.token.email } : {}),
+      ...(token.email ? { customer_email: token.email } : {}),
       line_items: [
         {
           price: process.env.STRIPE_PRICE_ID, // Stripe Price ID from environment config
@@ -185,7 +339,7 @@ const app = new Hono()
         },
       ],
       metadata: {
-        userId: auth.token.id, // Stored for webhook processing to link subscription to user
+        userId: token.id, // Stored for webhook processing to link subscription to user
       },
     });
 
@@ -211,6 +365,7 @@ const app = new Hono()
    * @returns {Object} 200 - null - Webhook processed successfully
    * @returns {Object} 400 - { error: "Invalid signature" } - Webhook signature verification failed
    * @returns {Object} 400 - { error: "Invalid session" } - Missing userId in session metadata
+   * @returns {Object} 400 - { error: "No subscription ID found on invoice parent" } - Invoice missing subscription reference
    *
    * @security Uses STRIPE_WEBHOOK_SECRET to verify event authenticity
    *
@@ -222,6 +377,7 @@ const app = new Hono()
     // Extract raw request body and Stripe signature header for verification
     const body = await c.req.text();
     const signature = c.req.header("Stripe-Signature") as string;
+    const stripe = getStripe();
 
     let event: Stripe.Event;
 
@@ -231,7 +387,6 @@ const app = new Hono()
      * Throws an error if signature is invalid or webhook secret is incorrect.
      */
     try {
-      const stripe = getStripe();
       event = stripe.webhooks.constructEvent(
         body,
         signature,
@@ -249,51 +404,11 @@ const app = new Hono()
      */
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+      const result = await handleCheckoutSessionCompleted(session, stripe);
 
-      const stripe = getStripe();
-      const subscription = await stripe.subscriptions.retrieve(
-        session.subscription as string,
-      );
-
-      // Validate that userId was stored in session metadata during checkout creation
-      if (!session?.metadata?.userId) {
-        return c.json({ error: "Invalid session" }, 400);
+      if (result) {
+        return c.json({ error: result.error }, result.status);
       }
-
-      /**
-       * Insert new subscription record into database with:
-       * - Subscription status from Stripe (e.g., "active", "trialing")
-       * - User ID from session metadata for user-subscription linking
-       * - Stripe IDs for future API operations (subscriptionId, customerId, priceId)
-       * - Current period end converted from Unix timestamp to JavaScript Date
-       */
-      await db
-        .insert(subscriptions)
-        .values({
-          status: subscription.status,
-          userId: session.metadata.userId,
-          subscriptionId: subscription.id,
-          customerId: subscription.customer as string,
-          priceId: subscription.items.data[0].price.id,
-          currentPeriodEnd: new Date(
-            subscription.items.data[0].current_period_end * 1000, // Convert Unix timestamp to ms
-          ),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: subscriptions.subscriptionId,
-          set: {
-            status: subscription.status,
-            userId: session.metadata.userId,
-            customerId: subscription.customer as string,
-            priceId: subscription.items.data[0].price.id,
-            currentPeriodEnd: new Date(
-              subscription.items.data[0].current_period_end * 1000,
-            ),
-            updatedAt: new Date(),
-          },
-        });
     }
 
     /**
@@ -303,36 +418,11 @@ const app = new Hono()
      */
     if (event.type === "invoice.payment_succeeded") {
       const invoice = event.data.object as Stripe.Invoice;
+      const result = await handleInvoicePaymentSucceeded(invoice, stripe);
 
-      const subscriptionId = typeof invoice.parent?.subscription_details?.subscription === "string"
-        ? invoice.parent.subscription_details.subscription
-        : invoice.parent?.subscription_details?.subscription?.id;
-
-      if (!subscriptionId) {
-        return c.json({ error: "No subscription ID found on invoice parent" }, 400);
+      if (result) {
+        return c.json({ error: result.error }, result.status);
       }
-
-      const stripe = getStripe();
-      const subscription = await stripe.subscriptions.retrieve(
-        subscriptionId,
-      );
-
-      /**
-       * Update existing subscription record with latest billing information:
-       * - Updated status in case it changed (e.g., "past_due" -> "active")
-       * - New period end date for the next billing cycle
-       * - Updated timestamp for audit trail
-       */
-      await db
-        .update(subscriptions)
-        .set({
-          status: subscription.status,
-          currentPeriodEnd: new Date(
-            subscription.items.data[0].current_period_end * 1000, // Convert Unix timestamp to ms
-          ),
-          updatedAt: new Date(),
-        })
-        .where(eq(subscriptions.subscriptionId, subscription.id));
     }
 
     // Return 200 to acknowledge successful webhook processing
